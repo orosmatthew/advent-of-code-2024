@@ -50,6 +50,8 @@ static int solve(const std::string& data)
 {
     static std::vector<int> list1;
     static std::vector<int> list2;
+    list1.clear();
+    list2.clear();
     for (int i = 0; i < data.length(); ++i) {
         list1.push_back(parse_int(data, i));
         skip_spaces(data, i);
@@ -70,7 +72,7 @@ int main()
     const std::string data = read_data("./day1-part1/input.txt");
 
 #ifdef BENCHMARK
-    constexpr int n_runs = 1000;
+    constexpr int n_runs = 100000;
     double time_running_total = 0.0;
 
     for (int n_run = 0; n_run < n_runs; ++n_run) {
@@ -82,7 +84,7 @@ int main()
         auto end = std::chrono::high_resolution_clock::now();
         time_running_total += std::chrono::duration<double, std::nano>(end - start).count();
     }
-    std::print("Average ns: {}\n", time_running_total / n_runs);
+    std::printf("Average ns: %d\n", static_cast<int>(std::round(time_running_total / n_runs)));
 #else
     std::printf("%d\n", solve(data));
 #endif

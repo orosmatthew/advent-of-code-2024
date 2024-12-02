@@ -6,5 +6,5 @@ My advent of code solutions. My personal goal is to make my solutions fast so be
 
 | Problem      | Average Time | Iterations |
 |--------------|--------------|------------|
-| Day 1 Part 1 | 3.653515 ms  | 1000       |
-| Day 2 Part 2 | 35.002431 ms | 1000       |
+| Day 1 Part 1 | 22,297 ns    | 100000     |
+| Day 2 Part 2 | 53,673 ns    | 100000     |
