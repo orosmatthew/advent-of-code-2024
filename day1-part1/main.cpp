@@ -23,20 +23,12 @@ static bool is_digit(const char c)
 
 static int parse_int(const std::string& string, int& pos)
 {
-    constexpr std::array powers = { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 };
-    std::array<int, 10> digits {};
-    int digits_count = 0;
+    int result = 0;
     while (is_digit(string[pos])) {
-        assert(digits_count + 1 < digits.size());
-        digits[digits_count++] = string[pos] - '0';
+        result = result * 10 + (string[pos] - '0');
         ++pos;
     }
-    int sum = 0;
-    for (int d = 0; d < digits_count; ++d) {
-        const int power = powers[digits_count - d - 1];
-        sum += power * digits[d];
-    }
-    return sum;
+    return result;
 }
 
 static void skip_spaces(const std::string& string, int& pos)
