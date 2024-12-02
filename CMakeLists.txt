@@ -17,3 +17,4 @@ if (WIN32)
 endif ()
 
 add_executable(day1-part1 day1-part1/main.cpp)
+add_executable(day1-part2 day1-part2/main.cpp)
