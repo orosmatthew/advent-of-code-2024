@@ -1,12 +1,11 @@
 #include <algorithm>
-#include <array>
 #include <cassert>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <sstream>
 #include <vector>
+#include <cmath>
 
 static std::string read_data(const std::filesystem::path& path)
 {
