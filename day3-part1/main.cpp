@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <cmath>
 
 static std::string read_data(const std::filesystem::path& path)
 {
