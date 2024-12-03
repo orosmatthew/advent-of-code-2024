@@ -51,14 +51,17 @@ static std::optional<int> parse_mul(const std::string& string, int& pos)
     if (!substr_equals_at(string, "mul(", pos)) {
         return std::nullopt;
     }
+    const int saved_pos = pos;
     pos += 4;
     const std::optional<int> value1 = parse_int_opt(string, pos);
     if (!value1.has_value() || pos >= string.length() || string[pos] != ',') {
+        pos = saved_pos;
         return std::nullopt;
     }
     ++pos;
     const std::optional<int> value2 = parse_int_opt(string, pos);
     if (!value2.has_value() || pos >= string.length() || string[pos] != ')') {
+        pos = saved_pos;
         return std::nullopt;
     }
     ++pos;
