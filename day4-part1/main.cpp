@@ -53,6 +53,9 @@ public:
         int count = 0;
         for (int y = 0; y < m_size.y; ++y) {
             for (int x = 0; x < m_size.x; ++x) {
+                if (at({ x, y }).value() != word[0]) {
+                    continue;
+                }
                 for (const Dir dir : dirs) {
                     if (word_at(word, { x, y }, dir)) {
                         ++count;
