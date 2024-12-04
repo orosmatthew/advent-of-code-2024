@@ -28,6 +28,8 @@ struct Vector2i {
 
 class WordSearch {
 public:
+    enum class Dir { north, northeast, east, southeast, south, southwest, west, northwest };
+
     static WordSearch parse(const std::string& string)
     {
         std::optional<int> width;
@@ -46,30 +48,17 @@ public:
         return WordSearch { width.value(), std::move(board) };
     }
 
-    [[nodiscard]] int search_word_count(const std::string& word) const
+    [[nodiscard]] bool word_at(const std::string& word, const Vector2i& pos, const Dir dir) const
     {
-        constexpr std::array dirs { Dir::north, Dir::northeast, Dir::east, Dir::southeast,
-                                    Dir::south, Dir::southwest, Dir::west, Dir::northwest };
-        int count = 0;
-        for (int y = 0; y < m_size.y; ++y) {
-            for (int x = 0; x < m_size.x; ++x) {
-                for (const Dir dir : dirs) {
-                    if (word_at(word, { x, y }, dir)) {
-                        ++count;
-                    }
-                }
+        const Vector2i offset = word_dir_offset(dir);
+        Vector2i current = pos;
+        for (int i = 0; i < word.length(); ++i) {
+            if (std::optional<char> c = at(current); !c.has_value() || word[i] != c.value()) {
+                return false;
             }
+            current += offset;
         }
-        return count;
-    }
-
-private:
-    enum class Dir { north, northeast, east, southeast, south, southwest, west, northwest };
-
-    WordSearch(const int width, std::vector<char> board)
-        : m_board { std::move(board) }
-        , m_size { width, static_cast<int>(m_board.size()) / width }
-    {
+        return true;
     }
 
     [[nodiscard]] bool in_bounds(const Vector2i& pos) const
@@ -83,6 +72,18 @@ private:
             return std::nullopt;
         }
         return m_board[index(pos)];
+    }
+
+    [[nodiscard]] Vector2i size() const
+    {
+        return m_size;
+    }
+
+private:
+    WordSearch(const int width, std::vector<char> board)
+        : m_board { std::move(board) }
+        , m_size { width, static_cast<int>(m_board.size()) / width }
+    {
     }
 
     [[nodiscard]] int index(const Vector2i& pos) const
@@ -113,19 +114,6 @@ private:
         std::unreachable();
     }
 
-    [[nodiscard]] bool word_at(const std::string& word, const Vector2i& pos, const Dir dir) const
-    {
-        const Vector2i offset = word_dir_offset(dir);
-        Vector2i current = pos;
-        for (int i = 0; i < word.length(); ++i) {
-            if (std::optional<char> c = at(current); !c.has_value() || word[i] != c.value()) {
-                return false;
-            }
-            current += offset;
-        }
-        return true;
-    }
-
     std::vector<char> m_board;
     Vector2i m_size;
 };
@@ -133,12 +121,28 @@ private:
 static int solve(const std::string& data)
 {
     const WordSearch search = WordSearch::parse(data);
-    return search.search_word_count("XMAS");
+    const auto [width, height] = search.size();
+    int count = 0;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const bool first = search.word_at("MAS", { x, y }, WordSearch::Dir::southeast)
+                || search.word_at("SAM", { x, y }, WordSearch::Dir::southeast);
+            if (!first) {
+                continue;
+            }
+            const bool second = search.word_at("MAS", { x, y + 2 }, WordSearch::Dir::northeast)
+                || search.word_at("SAM", { x, y + 2 }, WordSearch::Dir::northeast);
+            if (second) {
+                ++count;
+            }
+        }
+    }
+    return count;
 }
 
 int main()
 {
-    const std::string data = read_data("./day4-part1/input.txt");
+    const std::string data = read_data("./day4-part2/input.txt");
 
 #ifdef BENCHMARK
     constexpr int n_runs = 100000;
