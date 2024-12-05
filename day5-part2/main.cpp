@@ -96,6 +96,7 @@ static const std::vector<int>& fix_update(
     fixed_update.reserve(update.size());
     static std::vector<int> after_counts;
     after_counts.clear();
+    after_counts.reserve(update.size());
     for (int i = 0; i < update.size(); ++i) {
         int count = 0;
         for (int j = 0; j < update.size(); ++j) {
