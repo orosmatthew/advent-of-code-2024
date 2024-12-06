@@ -89,12 +89,9 @@ static bool update_valid(const std::unordered_map<int, std::vector<int>>& rules,
     return true;
 }
 
-static const std::vector<int>& fix_update(
-    const std::unordered_map<int, std::vector<int>>& rules, const std::vector<int>& update)
+static int fixed_update_middle(const std::unordered_map<int, std::vector<int>>& rules, const std::vector<int>& update)
 {
-    static std::vector<int> fixed_update;
-    fixed_update.clear();
-    fixed_update.resize(update.size());
+    const size_t target_index = update.size() / 2;
     for (int i = 0; i < update.size(); ++i) {
         int count = 0;
         for (int j = 0; j < update.size(); ++j) {
@@ -105,12 +102,17 @@ static const std::vector<int>& fix_update(
                 if (const std::vector<int>& after = rules.at(update[i]);
                     std::ranges::find(after, update[j]) != after.end()) {
                     ++count;
+                    if (count > target_index) {
+                        break;
+                    }
                 }
             }
         }
-        fixed_update[update.size() - count - 1] = update[i];
+        if (count == target_index) {
+            return update[i];
+        }
     }
-    return fixed_update;
+    std::unreachable();
 }
 
 static int solve(const std::string& data)
@@ -121,9 +123,7 @@ static int solve(const std::string& data)
     int result = 0;
     while (pos < data.length()) {
         if (const std::vector<int>& update = parse_update(data, pos); !update_valid(rules, update)) {
-            const std::vector<int>& fixed_update = fix_update(rules, update);
-            const int middle = fixed_update[fixed_update.size() / 2];
-            result += middle;
+            result += fixed_update_middle(rules, update);
         }
     }
     return result;
