@@ -78,26 +78,48 @@ public:
     int count_loops_with_new_obstacles()
     {
         const Vector2i saved_guard_pos = m_guard_pos;
+        auto reset_state = [&] {
+            for (auto& [_, visited_dir] : m_grid) {
+                visited_dir.reset();
+            }
+            m_guard_pos = saved_guard_pos;
+            m_guard_dir = Dir::north;
+        };
+        const std::vector<Vector2i> visited = move_and_get_visited();
+        reset_state();
         int count = 0;
-        for (int y = 0; y < m_size.y; ++y) {
-            for (int x = 0; x < m_size.x; ++x) {
-                if (auto& [obstacle, visited] = m_grid[index({ x, y })];
-                    !obstacle && m_guard_pos != Vector2i { x, y }) {
-                    obstacle = true;
-                    if (move_and_detect_loop()) {
-                        ++count;
-                    }
-                    obstacle = false;
-                    for (auto& [_, visited_dir] : m_grid) {
-                        visited_dir.reset();
-                    }
-                    m_guard_pos = saved_guard_pos;
-                    m_guard_dir = Dir::north;
-                    m_grid[index(m_guard_pos)].visited_dir = Dir::north;
+        for (const Vector2i& pos : visited) {
+            if (auto& [obstacle, visited] = m_grid[index(pos)]; !obstacle && m_guard_pos != pos) {
+                obstacle = true;
+                if (move_and_detect_loop()) {
+                    ++count;
                 }
+                obstacle = false;
+                reset_state();
+                m_grid[index(m_guard_pos)].visited_dir = Dir::north;
             }
         }
         return count;
+    }
+
+    std::vector<Vector2i> move_and_get_visited()
+    {
+        while (true) {
+            bool loop_detected;
+            if (const MoveResult result = move_until_stopped(loop_detected); result == MoveResult::out_of_bounds) {
+                break;
+            }
+            rotate_guard();
+        }
+        std::vector<Vector2i> visited;
+        for (int y = 0; y < m_size.y; ++y) {
+            for (int x = 0; x < m_size.x; ++x) {
+                if (m_grid[index({ x, y })].visited_dir.has_value()) {
+                    visited.push_back({ x, y });
+                }
+            }
+        }
+        return visited;
     }
 
 private:
