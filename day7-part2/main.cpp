@@ -125,7 +125,8 @@ static uint64_t concat_nums(const uint64_t a, const uint64_t b)
     return a * pow10[digits_count(b)] + b;
 }
 
-static uint64_t evaluate_equation(const std::vector<uint64_t>& numbers, const std::vector<Operator>& ops)
+static bool evaluate_equals(
+    const std::vector<uint64_t>& numbers, const std::vector<Operator>& ops, const uint64_t value)
 {
     assert(!numbers.empty());
     assert(ops.size() == numbers.size() - 1);
@@ -142,8 +143,11 @@ static uint64_t evaluate_equation(const std::vector<uint64_t>& numbers, const st
             result = concat_nums(result, numbers[i]);
             break;
         }
+        if (result > value) {
+            return false;
+        }
     }
-    return result;
+    return result == value;
 }
 
 static bool validate_equation(const Equation& equation)
@@ -152,7 +156,7 @@ static bool validate_equation(const Equation& equation)
     ops.clear();
     ops.resize(equation.numbers.size() - 1, Operator::add);
     do {
-        if (evaluate_equation(equation.numbers, ops) == equation.result) {
+        if (evaluate_equals(equation.numbers, ops, equation.result)) {
             return true;
         }
     } while (next_operators(ops));
