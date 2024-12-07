@@ -130,24 +130,29 @@ static bool evaluate_equals(
 {
     assert(!numbers.empty());
     assert(ops.size() == numbers.size() - 1);
-    uint64_t result = numbers[0];
-    for (int i = 1; i < numbers.size(); ++i) {
+    uint64_t result = value;
+    for (int i = static_cast<int>(numbers.size()) - 1; i > 0; --i) {
+        const uint64_t num = numbers[i];
         switch (ops[i - 1]) {
         case Operator::add:
-            result += numbers[i];
+            result -= num;
             break;
         case Operator::mul:
-            result *= numbers[i];
+            if (result % num != 0) {
+                return false;
+            }
+            result /= num;
             break;
         case Operator::concat:
-            result = concat_nums(result, numbers[i]);
+            const uint64_t divisor = pow10[digits_count(num)];
+            if (result % divisor != num) {
+                return false;
+            }
+            result /= divisor;
             break;
         }
-        if (result > value) {
-            return false;
-        }
     }
-    return result == value;
+    return result == numbers[0];
 }
 
 static bool validate_equation(const Equation& equation)
