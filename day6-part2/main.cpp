@@ -77,11 +77,10 @@ public:
 
     int count_loops_with_new_obstacles()
     {
+        const std::vector<GridSquare> saved_grid = m_grid;
         const Vector2i saved_guard_pos = m_guard_pos;
         auto reset_state = [&] {
-            for (auto& [_, visited_dir] : m_grid) {
-                visited_dir.reset();
-            }
+            m_grid = saved_grid;
             m_guard_pos = saved_guard_pos;
             m_guard_dir = Dir::north;
         };
