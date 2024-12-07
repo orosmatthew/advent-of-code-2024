@@ -120,11 +120,6 @@ static int digits_count(const uint64_t num)
     return count;
 }
 
-static uint64_t concat_nums(const uint64_t a, const uint64_t b)
-{
-    return a * pow10[digits_count(b)] + b;
-}
-
 static bool evaluate_equals(
     const std::vector<uint64_t>& numbers, const std::vector<Operator>& ops, const uint64_t value)
 {
