@@ -65,7 +65,7 @@ static std::optional<int64_t> parse_int_opt(const std::string& string, int& pos)
 
 struct Equation {
     int64_t result {};
-    std::vector<uint64_t> numbers;
+    std::vector<int64_t> numbers;
 };
 
 static void parse_equation(const std::string& data, int& pos, Equation& equation)
@@ -82,14 +82,13 @@ static void parse_equation(const std::string& data, int& pos, Equation& equation
     }
 }
 
-static bool evaluate_equals(
-    const std::vector<uint64_t>& numbers, const std::vector<Operator>& ops, const uint64_t value)
+static bool evaluate_equals(const std::vector<int64_t>& numbers, const std::vector<Operator>& ops, const int64_t value)
 {
     assert(!numbers.empty());
     assert(ops.size() == numbers.size() - 1);
-    uint64_t result = value;
+    int64_t result = value;
     for (int i = static_cast<int>(numbers.size()) - 1; i > 0; --i) {
-        const uint64_t num = numbers[i];
+        const int64_t num = numbers[i];
         switch (ops[i - 1]) {
         case Operator::add:
             result -= num;
@@ -118,11 +117,11 @@ static bool validate_equation(const Equation& equation)
     return false;
 }
 
-static uint64_t solve(const std::string& data)
+static int64_t solve(const std::string& data)
 {
     Equation equation;
     int pos = 0;
-    uint64_t result = 0;
+    int64_t result = 0;
     while (pos < data.size()) {
         parse_equation(data, pos, equation);
         ++pos; // \n
@@ -146,12 +145,12 @@ int main()
         // ReSharper disable once CppDFAUnusedValue
         // ReSharper disable once CppDFAUnreadVariable
         // ReSharper disable once CppDeclaratorNeverUsed
-        volatile uint64_t result = solve(data);
+        volatile int64_t result = solve(data);
         auto end = std::chrono::high_resolution_clock::now();
         time_running_total += std::chrono::duration<double, std::nano>(end - start).count();
     }
     std::printf("Average ns: %d\n", static_cast<int>(std::round(time_running_total / n_runs)));
 #else
-    std::printf("%llu\n", solve(data));
+    std::printf("%lld\n", solve(data));
 #endif
 }

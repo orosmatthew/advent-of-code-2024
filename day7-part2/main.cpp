@@ -51,12 +51,12 @@ static bool is_digit(const char c)
     return c >= '0' && c <= '9';
 }
 
-static std::optional<uint64_t> parse_int_opt(const std::string& string, int& pos)
+static std::optional<int64_t> parse_int_opt(const std::string& string, int& pos)
 {
     if (!is_digit(string[pos])) {
         return std::nullopt;
     }
-    uint64_t result = 0;
+    int64_t result = 0;
     do {
         result = result * 10 + (string[pos] - '0');
         ++pos;
@@ -65,8 +65,8 @@ static std::optional<uint64_t> parse_int_opt(const std::string& string, int& pos
 }
 
 struct Equation {
-    uint64_t result {};
-    std::vector<uint64_t> numbers;
+    int64_t result {};
+    std::vector<int64_t> numbers;
 };
 
 static void parse_equation(const std::string& data, int& pos, Equation& equation)
@@ -83,30 +83,29 @@ static void parse_equation(const std::string& data, int& pos, Equation& equation
     }
 }
 
-constexpr std::array pow10 {
-    1ull,
-    10ull,
-    100ull,
-    1000ull,
-    10000ull,
-    100000ull,
-    1000000ull,
-    10000000ull,
-    100000000ull,
-    1000000000ull,
-    10000000000ull,
-    100000000000ull,
-    1000000000000ull,
-    10000000000000ull,
-    100000000000000ull,
-    1000000000000000ull,
-    10000000000000000ull,
-    100000000000000000ull,
-    1000000000000000000ull,
-    10000000000000000000ull
+constexpr std::array<int64_t, 19> pow10 {
+    1ULL,
+    10ULL,
+    100ULL,
+    1000ULL,
+    10000ULL,
+    100000ULL,
+    1000000ULL,
+    10000000ULL,
+    100000000ULL,
+    1000000000ULL,
+    10000000000ULL,
+    100000000000ULL,
+    1000000000000ULL,
+    10000000000000ULL,
+    100000000000000ULL,
+    1000000000000000ULL,
+    10000000000000000ULL,
+    100000000000000000ULL,
+    1000000000000000000ULL,
 };
 
-static int digits_count(const uint64_t num)
+static int digits_count(const int64_t num)
 {
     int count = 1;
     for (int i = 1; i < pow10.size(); ++i) {
@@ -120,14 +119,13 @@ static int digits_count(const uint64_t num)
     return count;
 }
 
-static bool evaluate_equals(
-    const std::vector<uint64_t>& numbers, const std::vector<Operator>& ops, const uint64_t value)
+static bool evaluate_equals(const std::vector<int64_t>& numbers, const std::vector<Operator>& ops, const int64_t value)
 {
     assert(!numbers.empty());
     assert(ops.size() == numbers.size() - 1);
-    uint64_t result = value;
+    int64_t result = value;
     for (int i = static_cast<int>(numbers.size()) - 1; i > 0; --i) {
-        const uint64_t num = numbers[i];
+        const int64_t num = numbers[i];
         switch (ops[i - 1]) {
         case Operator::add:
             result -= num;
@@ -139,7 +137,7 @@ static bool evaluate_equals(
             result /= num;
             break;
         case Operator::concat:
-            const uint64_t divisor = pow10[digits_count(num)];
+            const int64_t divisor = pow10[digits_count(num)];
             if (result % divisor != num) {
                 return false;
             }
@@ -163,11 +161,11 @@ static bool validate_equation(const Equation& equation)
     return false;
 }
 
-static uint64_t solve(const std::string& data)
+static int64_t solve(const std::string& data)
 {
     Equation equation;
     int pos = 0;
-    uint64_t result = 0;
+    int64_t result = 0;
     while (pos < data.size()) {
         parse_equation(data, pos, equation);
         ++pos; // \n
@@ -191,12 +189,12 @@ int main()
         // ReSharper disable once CppDFAUnusedValue
         // ReSharper disable once CppDFAUnreadVariable
         // ReSharper disable once CppDeclaratorNeverUsed
-        volatile uint64_t result = solve(data);
+        volatile int64_t result = solve(data);
         auto end = std::chrono::high_resolution_clock::now();
         time_running_total += std::chrono::duration<double, std::nano>(end - start).count();
     }
     std::printf("Average ns: %d\n", static_cast<int>(std::round(time_running_total / n_runs)));
 #else
-    std::printf("%llu\n", solve(data));
+    std::printf("%lld\n", solve(data));
 #endif
 }
