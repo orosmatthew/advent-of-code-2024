@@ -92,6 +92,9 @@ static bool evaluate_equals(const std::vector<int64_t>& numbers, const std::vect
         switch (ops[i - 1]) {
         case Operator::add:
             result -= num;
+            if (result < 0) {
+                return false;
+            }
             break;
         case Operator::mul:
             if (result % num != 0) {
