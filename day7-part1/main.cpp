@@ -7,7 +7,6 @@
 #include <iostream>
 #include <sstream>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 static std::string read_data(const std::filesystem::path& path)
@@ -66,7 +65,7 @@ static std::optional<int64_t> parse_int_opt(const std::string& string, int& pos)
 
 struct Equation {
     int64_t result {};
-    std::vector<int64_t> numbers;
+    std::vector<uint64_t> numbers;
 };
 
 static void parse_equation(const std::string& data, int& pos, Equation& equation)
@@ -83,21 +82,27 @@ static void parse_equation(const std::string& data, int& pos, Equation& equation
     }
 }
 
-static int64_t evaluate_equation(const std::vector<int64_t>& numbers, const std::vector<Operator>& ops)
+static bool evaluate_equals(
+    const std::vector<uint64_t>& numbers, const std::vector<Operator>& ops, const uint64_t value)
 {
     assert(!numbers.empty());
     assert(ops.size() == numbers.size() - 1);
-    int64_t result = numbers[0];
-    for (int i = 1; i < numbers.size(); ++i) {
+    uint64_t result = value;
+    for (int i = static_cast<int>(numbers.size()) - 1; i > 0; --i) {
+        const uint64_t num = numbers[i];
         switch (ops[i - 1]) {
         case Operator::add:
-            result += numbers[i];
+            result -= num;
             break;
         case Operator::mul:
-            result *= numbers[i];
+            if (result % num != 0) {
+                return false;
+            }
+            result /= num;
+            break;
         }
     }
-    return result;
+    return result == numbers[0];
 }
 
 static bool validate_equation(const Equation& equation)
@@ -106,18 +111,18 @@ static bool validate_equation(const Equation& equation)
     ops.clear();
     ops.resize(equation.numbers.size() - 1, Operator::add);
     do {
-        if (evaluate_equation(equation.numbers, ops) == equation.result) {
+        if (evaluate_equals(equation.numbers, ops, equation.result)) {
             return true;
         }
     } while (next_operators(ops));
     return false;
 }
 
-static int64_t solve(const std::string& data)
+static uint64_t solve(const std::string& data)
 {
     Equation equation;
     int pos = 0;
-    int64_t result = 0;
+    uint64_t result = 0;
     while (pos < data.size()) {
         parse_equation(data, pos, equation);
         ++pos; // \n
@@ -141,12 +146,12 @@ int main()
         // ReSharper disable once CppDFAUnusedValue
         // ReSharper disable once CppDFAUnreadVariable
         // ReSharper disable once CppDeclaratorNeverUsed
-        volatile int64_t result = solve(data);
+        volatile uint64_t result = solve(data);
         auto end = std::chrono::high_resolution_clock::now();
         time_running_total += std::chrono::duration<double, std::nano>(end - start).count();
     }
     std::printf("Average ns: %d\n", static_cast<int>(std::round(time_running_total / n_runs)));
 #else
-    std::printf("%lld\n", solve(data));
+    std::printf("%llu\n", solve(data));
 #endif
 }
