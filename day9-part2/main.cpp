@@ -36,17 +36,6 @@ static std::vector<Segment> parse_segments(const std::string& data)
     return segments;
 }
 
-static void combine_free(std::vector<Segment>& segments, const int start = 1)
-{
-    for (int i = start; i < segments.size(); ++i) {
-        if (!segments[i - 1].id.has_value() && !segments[i].id.has_value()) {
-            segments[i - 1].size += segments[i].size;
-            segments.erase(segments.begin() + i);
-            --i;
-        }
-    }
-}
-
 static void defrag_segments(std::vector<Segment>& segments)
 {
     for (int64_t i = static_cast<int64_t>(segments.size()) - 1; i >= 0; --i) {
@@ -75,7 +64,6 @@ static void defrag_segments(std::vector<Segment>& segments)
         }
         if (moved) {
             segments[i].id.reset();
-            combine_free(segments, static_cast<int>(i));
         }
     }
 }
