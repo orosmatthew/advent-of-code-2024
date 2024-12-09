@@ -36,6 +36,13 @@ struct Vector2i {
         return { x + other.x, y + other.y };
     }
 
+    Vector2i& operator-=(const Vector2i& other)
+    {
+        x -= other.x;
+        y -= other.y;
+        return *this;
+    }
+
     Vector2i operator-(const Vector2i& other) const
     {
         return { x - other.x, y - other.y };
@@ -114,12 +121,16 @@ public:
                         std::swap(a, b);
                     }
                     const Vector2i diff = b - a;
-                    if (const Vector2i antinode1 = a - diff; in_bounds(antinode1)) {
-                        antinodes.insert(antinode1);
-                    }
-                    if (const Vector2i antinode2 = b + diff; in_bounds(antinode2)) {
-                        antinodes.insert(antinode2);
-                    }
+                    Vector2i antinode = a;
+                    do {
+                        antinodes.insert(antinode);
+                        antinode -= diff;
+                    } while (in_bounds(antinode));
+                    antinode = b;
+                    do {
+                        antinodes.insert(antinode);
+                        antinode += diff;
+                    } while (in_bounds(antinode));
                 }
             }
         }
@@ -150,7 +161,7 @@ static int64_t solve(const std::string& data)
 
 int main()
 {
-    const std::string data = read_data("./day8-part1/input.txt");
+    const std::string data = read_data("./day8-part2/input.txt");
 
 #ifdef BENCHMARK
     constexpr int n_runs = 100000;
