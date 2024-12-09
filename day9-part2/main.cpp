@@ -36,15 +36,6 @@ static std::vector<Segment> parse_segments(const std::string& data)
     return segments;
 }
 
-static std::optional<int64_t> trim_free_end(std::vector<Segment>& segments)
-{
-    if (auto [id, size] = segments[segments.size() - 1]; !id.has_value()) {
-        segments.pop_back();
-        return size;
-    }
-    return std::nullopt;
-}
-
 static void combine_free(std::vector<Segment>& segments, const int start = 1)
 {
     for (int i = start; i < segments.size(); ++i) {
