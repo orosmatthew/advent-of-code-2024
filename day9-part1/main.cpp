@@ -36,22 +36,17 @@ static std::vector<Segment> parse_segments(const std::string& data)
     return segments;
 }
 
-static std::optional<int64_t> trim_free_end(std::vector<Segment>& segments)
+static void trim_free_end(std::vector<Segment>& segments)
 {
     if (auto [id, size] = segments[segments.size() - 1]; !id.has_value()) {
         segments.pop_back();
-        return size;
     }
-    return std::nullopt;
 }
 
 static std::vector<Segment> defrag_segments(std::vector<Segment>&& segments)
 {
     std::vector<Segment> defragged_segments;
-    int64_t free_end = 0;
-    if (const std::optional<int64_t> trimmed_free = trim_free_end(segments); trimmed_free.has_value()) {
-        free_end = trimmed_free.value();
-    }
+    trim_free_end(segments);
     for (int64_t i = 0; i < segments.size(); ++i) {
         Segment& segment = segments[i];
         if (segment.id.has_value()) {
@@ -60,15 +55,12 @@ static std::vector<Segment> defrag_segments(std::vector<Segment>&& segments)
         }
         int64_t free_size = segment.size;
         while (free_size > 0) {
-            if (const std::optional<int64_t> trimmed_free = trim_free_end(segments); trimmed_free.has_value()) {
-                free_end = trimmed_free.value();
-            }
+            trim_free_end(segments);
             if (Segment& last_file = segments[segments.size() - 1]; last_file.size <= free_size) {
                 const int64_t last_size = last_file.size;
                 defragged_segments.push_back(last_file);
                 free_size -= last_size;
                 segments.pop_back();
-                free_end += last_size;
                 if (i == segments.size() - 1) {
                     break;
                 }
@@ -76,11 +68,9 @@ static std::vector<Segment> defrag_segments(std::vector<Segment>&& segments)
             else {
                 defragged_segments.push_back({ .id = last_file.id, .size = free_size });
                 last_file.size -= free_size;
-                free_end += free_size;
                 free_size = 0;
             }
         }
-        free_end += free_size;
     }
     if (defragged_segments.size() >= 2) {
         const auto& [last_id, last_size] = defragged_segments[defragged_segments.size() - 1];
@@ -89,9 +79,6 @@ static std::vector<Segment> defrag_segments(std::vector<Segment>&& segments)
             second_last_size += last_size;
             defragged_segments.pop_back();
         }
-    }
-    if (free_end > 0) {
-        defragged_segments.push_back({ .id = std::nullopt, .size = free_end });
     }
     return defragged_segments;
 }
