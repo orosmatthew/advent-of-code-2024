@@ -98,16 +98,13 @@ public:
         return { std::move(heights), std::move(trailheads), { width.value(), y } };
     }
 
-    [[nodiscard]] int64_t trailhead_scores_sum() const
+    [[nodiscard]] int64_t trailhead_ratings_sum() const
     {
-        std::unordered_set<Vector2i> max_heights;
-        int64_t score_sum = 0;
+        int64_t ratings_sum = 0;
         for (const Vector2i& trailhead : m_trailheads) {
-            max_heights.clear();
-            reachable_max_heights_from(trailhead, max_heights);
-            score_sum += static_cast<int64_t>(max_heights.size());
+            ratings_sum += rating_from(trailhead);
         }
-        return score_sum;
+        return ratings_sum;
     }
 
 private:
@@ -136,22 +133,22 @@ private:
         return m_data[index(pos)];
     }
 
-    void reachable_max_heights_from( // NOLINT(*-no-recursion)
-        const Vector2i& pos, std::unordered_set<Vector2i>& max_heights) const
+    [[nodiscard]] int64_t rating_from(const Vector2i& pos) const // NOLINT(*-no-recursion)
     {
         const int current_height = m_data[index(pos)];
         if (current_height == 9) {
-            max_heights.insert(pos);
-            return;
+            return 1;
         }
+        int64_t rating = 0;
         for (constexpr std::array<Vector2i, 4> offsets { { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } } };
              const Vector2i& offset : offsets) {
             const Vector2i neighbor_pos = pos + offset;
             if (const std::optional<int> neighbor_height = height_at_opt(neighbor_pos);
                 neighbor_height.has_value() && neighbor_height.value() == current_height + 1) {
-                reachable_max_heights_from(neighbor_pos, max_heights);
+                rating += rating_from(neighbor_pos);
             }
         }
+        return rating;
     }
 
     std::vector<int> m_data;
@@ -162,12 +159,12 @@ private:
 static int64_t solve(const std::string& data)
 {
     const Map map = Map::parse(data);
-    return map.trailhead_scores_sum();
+    return map.trailhead_ratings_sum();
 }
 
 int main()
 {
-    const std::string data = read_data("./day10-part1/input.txt");
+    const std::string data = read_data("./day10-part2/input.txt");
 
 #ifdef BENCHMARK
     constexpr int n_runs = 100000;
