@@ -2,7 +2,6 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <ranges>
 #include <sstream>
 #include <unordered_map>
@@ -135,7 +134,7 @@ int main()
     const std::string data = read_data("./day11-part1/input.txt");
 
 #ifdef BENCHMARK
-    constexpr int n_runs = 100;
+    constexpr int n_runs = 100000;
     double time_running_total = 0.0;
 
     for (int n_run = 0; n_run < n_runs; ++n_run) {
@@ -143,7 +142,7 @@ int main()
         // ReSharper disable once CppDFAUnusedValue
         // ReSharper disable once CppDFAUnreadVariable
         // ReSharper disable once CppDeclaratorNeverUsed
-        volatile int64_t result = solve(data);
+        volatile uint64_t result = solve(data);
         auto end = std::chrono::high_resolution_clock::now();
         time_running_total += std::chrono::duration<double, std::nano>(end - start).count();
     }
