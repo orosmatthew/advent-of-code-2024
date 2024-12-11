@@ -2,10 +2,11 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <ranges>
 #include <sstream>
+#include <unordered_map>
 #include <vector>
-#include <iostream>
 
 static std::string read_data(const std::filesystem::path& path)
 {
@@ -30,12 +31,18 @@ static uint64_t parse_int(const std::string& string, int& pos)
     return result;
 }
 
-static std::vector<uint64_t> parse_stones(const std::string& data)
+static std::unordered_map<uint64_t, uint64_t> parse_stones(const std::string& data)
 {
-    std::vector<uint64_t> stones;
+    std::unordered_map<uint64_t, uint64_t> stones;
     int pos = 0;
     while (true) {
-        stones.push_back(parse_int(data, pos));
+        const uint64_t stone = parse_int(data, pos);
+        if (auto it = stones.find(stone); it != stones.end()) {
+            ++it->second;
+        }
+        else {
+            stones[stone] = 1;
+        }
         if (data[pos] == '\n') {
             break;
         }
@@ -80,34 +87,47 @@ static int digits_count(const uint64_t num)
     return count;
 }
 
-static void blink(std::vector<uint64_t>& stones)
+static void blink(std::unordered_map<uint64_t, uint64_t>& stones)
 {
-    for (size_t i = 0; i < stones.size(); ++i) {
-        if (stones[i] == 0) {
-            stones[i] = 1;
-        }
-        else if (const int digits = digits_count(stones[i]); digits % 2 == 0) {
-            const uint64_t divisor = pow10[digits / 2];
-            const uint64_t first = stones[i] / divisor;
-            const uint64_t second = stones[i] % divisor;
-            stones[i] = second;
-            stones.insert(stones.begin() + static_cast<int64_t>(i), first);
-            ++i;
+    static std::unordered_map<uint64_t, uint64_t> new_stones;
+    new_stones.clear();
+    auto add_stone = [](const uint64_t stone, const uint64_t count) {
+        if (const auto it = new_stones.find(stone); it != new_stones.end()) {
+            it->second += count;
         }
         else {
-            stones[i] *= 2024;
+            new_stones[stone] = count;
+        }
+    };
+    for (auto& [stone, count] : stones) {
+        if (stone == 0) {
+            add_stone(1, count);
+        }
+        else if (const int digits = digits_count(stone); digits % 2 == 0) {
+            const uint64_t divisor = pow10[digits / 2];
+            const uint64_t first = stone / divisor;
+            const uint64_t second = stone % divisor;
+            add_stone(first, count);
+            add_stone(second, count);
+        }
+        else {
+            add_stone(stone * 2024, count);
         }
     }
+    std::swap(stones, new_stones);
 }
 
 static uint64_t solve(const std::string& data)
 {
-    std::vector<uint64_t> stones = parse_stones(data);
+    std::unordered_map<uint64_t, uint64_t> stones = parse_stones(data);
     for (int i = 0; i < 25; ++i) {
-        std::cout << i << std::endl;
         blink(stones);
     }
-    return stones.size();
+    uint64_t stone_count = 0;
+    for (const uint64_t count : stones | std::views::values) {
+        stone_count += count;
+    }
+    return stone_count;
 }
 
 int main()
@@ -115,7 +135,7 @@ int main()
     const std::string data = read_data("./day11-part1/input.txt");
 
 #ifdef BENCHMARK
-    constexpr int n_runs = 100000;
+    constexpr int n_runs = 100;
     double time_running_total = 0.0;
 
     for (int n_run = 0; n_run < n_runs; ++n_run) {
