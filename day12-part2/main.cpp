@@ -100,11 +100,20 @@ public:
         traversed.resize(m_data.size(), false);
         std::optional<Vector2i> start_pos = untraversed_start_pos(traversed);
         uint64_t cost = 0;
+        int area = 0;
+        Edges edges;
+        auto clear_edges = [&edges] {
+            for (auto& v : edges) {
+                v.clear();
+            }
+        };
         while (start_pos.has_value()) {
-            auto [area, edges] = traverse(start_pos.value(), traversed);
+            traverse(start_pos.value(), traversed, area, edges);
             const int unique_edges = unique_edges_count(std::move(edges));
             cost += area * unique_edges;
             start_pos = untraversed_start_pos(traversed);
+            area = 0;
+            clear_edges();
         }
         return cost;
     }
@@ -115,6 +124,8 @@ private:
         , m_size { size }
     {
     }
+
+    using Edges = std::array<std::vector<Vector2i>, 4>;
 
     enum Dir { dir_north = 0, dir_east = 1, dir_south = 2, dir_west = 3 };
 
@@ -141,41 +152,32 @@ private:
         return pos.x >= 0 && pos.x < m_size.x && pos.y >= 0 && pos.y < m_size.y;
     }
 
-    struct TraverseResult {
-        int area;
-        std::array<std::vector<Vector2i>, 4> edges;
-    };
-
-    [[nodiscard]] TraverseResult traverse( // NOLINT(*-no-recursion)
-        const Vector2i& start, std::vector<bool>& traversed) const
+    void traverse( // NOLINT(*-no-recursion)
+        const Vector2i& start,
+        std::vector<bool>& traversed,
+        int& area,
+        Edges& edges) const
     {
         assert(traversed.size() == m_data.size());
         assert(!traversed[index(start)]);
         const int start_index = index(start);
         traversed[start_index] = true;
-        TraverseResult result { .area = 1, .edges = std::array<std::vector<Vector2i>, 4> {} };
+        ++area;
         constexpr std::array<Vector2i, 4> offsets { { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } } };
         for (int i = 0; i < 4; ++i) {
             const Vector2i neighbor_pos = start + offsets[i];
             if (!in_bounds(neighbor_pos)) {
-                result.edges[i].push_back(start);
+                edges[i].push_back(start);
                 continue;
             }
             if (const int neighbor_index = index(neighbor_pos);
                 !traversed[neighbor_index] && m_data[neighbor_index] == m_data[start_index]) {
-                auto [neighbor_area, neighbor_edges] = traverse(neighbor_pos, traversed);
-                result.area += neighbor_area;
-                for (int j = 0; j < 4; ++j) {
-                    for (const Vector2i& neighbor_edge_pos : neighbor_edges[j]) {
-                        result.edges[j].push_back(neighbor_edge_pos);
-                    }
-                }
+                traverse(neighbor_pos, traversed, area, edges);
             }
             else if (m_data[neighbor_index] != m_data[start_index]) {
-                result.edges[i].push_back(start);
+                edges[i].push_back(start);
             }
         }
-        return result;
     }
 
     static std::pair<Vector2i, Vector2i> edge_dir_offsets(const Dir dir)
@@ -191,7 +193,7 @@ private:
         std::unreachable();
     }
 
-    static int unique_edges_count(std::array<std::vector<Vector2i>, 4>&& edges)
+    static int unique_edges_count(Edges&& edges)
     {
         auto next_dir = [&edges]() -> std::optional<Dir> {
             for (int i = 0; i < 4; ++i) {
