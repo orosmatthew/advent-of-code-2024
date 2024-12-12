@@ -101,18 +101,12 @@ public:
         std::optional<Vector2i> start_pos = untraversed_start_pos(traversed);
         uint64_t cost = 0;
         Edges edges;
-        auto clear_edges = [&edges] {
-            for (auto& v : edges) {
-                v.clear();
-            }
-        };
         while (start_pos.has_value()) {
             int area = 0;
             traverse(start_pos.value(), traversed, area, edges);
-            const int unique_edges = unique_edges_count(std::move(edges));
+            const int unique_edges = unique_edges_count(edges);
             cost += area * unique_edges;
             start_pos = untraversed_start_pos(traversed);
-            clear_edges();
         }
         return cost;
     }
@@ -192,7 +186,7 @@ private:
         std::unreachable();
     }
 
-    static int unique_edges_count(Edges&& edges)
+    static int unique_edges_count(Edges& edges)
     {
         auto next_dir = [&edges]() -> std::optional<Dir> {
             for (int i = 0; i < 4; ++i) {
