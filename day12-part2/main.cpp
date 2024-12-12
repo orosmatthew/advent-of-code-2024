@@ -100,7 +100,6 @@ public:
         traversed.resize(m_data.size(), false);
         std::optional<Vector2i> start_pos = untraversed_start_pos(traversed);
         uint64_t cost = 0;
-        int area = 0;
         Edges edges;
         auto clear_edges = [&edges] {
             for (auto& v : edges) {
@@ -108,11 +107,11 @@ public:
             }
         };
         while (start_pos.has_value()) {
+            int area = 0;
             traverse(start_pos.value(), traversed, area, edges);
             const int unique_edges = unique_edges_count(std::move(edges));
             cost += area * unique_edges;
             start_pos = untraversed_start_pos(traversed);
-            area = 0;
             clear_edges();
         }
         return cost;
@@ -242,7 +241,7 @@ int main()
     const std::string data = read_data("./day12-part2/input.txt");
 
 #ifdef BENCHMARK
-    constexpr int n_runs = 100;
+    constexpr int n_runs = 1000;
     double time_running_total = 0.0;
 
     for (int n_run = 0; n_run < n_runs; ++n_run) {
