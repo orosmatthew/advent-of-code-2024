@@ -6,6 +6,7 @@
 #include <ranges>
 #include <sstream>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 static std::string read_data(const std::filesystem::path& path)
@@ -142,7 +143,7 @@ private:
 
     struct TraverseResult {
         int area;
-        std::array<std::unordered_set<Vector2i>, 4> edges;
+        std::array<std::vector<Vector2i>, 4> edges;
     };
 
     [[nodiscard]] TraverseResult traverse( // NOLINT(*-no-recursion)
@@ -152,12 +153,12 @@ private:
         assert(!traversed[index(start)]);
         const int start_index = index(start);
         traversed[start_index] = true;
-        TraverseResult result { .area = 1, .edges = std::array<std::unordered_set<Vector2i>, 4> {} };
+        TraverseResult result { .area = 1, .edges = std::array<std::vector<Vector2i>, 4> {} };
         constexpr std::array<Vector2i, 4> offsets { { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } } };
         for (int i = 0; i < 4; ++i) {
             const Vector2i neighbor_pos = start + offsets[i];
             if (!in_bounds(neighbor_pos)) {
-                result.edges[i].insert(start);
+                result.edges[i].push_back(start);
                 continue;
             }
             if (const int neighbor_index = index(neighbor_pos);
@@ -166,12 +167,12 @@ private:
                 result.area += neighbor_area;
                 for (int j = 0; j < 4; ++j) {
                     for (const Vector2i& neighbor_edge_pos : neighbor_edges[j]) {
-                        result.edges[j].insert(neighbor_edge_pos);
+                        result.edges[j].push_back(neighbor_edge_pos);
                     }
                 }
             }
             else if (m_data[neighbor_index] != m_data[start_index]) {
-                result.edges[i].insert(start);
+                result.edges[i].push_back(start);
             }
         }
         return result;
@@ -190,7 +191,7 @@ private:
         std::unreachable();
     }
 
-    static int unique_edges_count(std::array<std::unordered_set<Vector2i>, 4>&& edges)
+    static int unique_edges_count(std::array<std::vector<Vector2i>, 4>&& edges)
     {
         auto next_dir = [&edges]() -> std::optional<Dir> {
             for (int i = 0; i < 4; ++i) {
@@ -203,20 +204,21 @@ private:
         int count = 0;
         std::optional<Dir> dir = next_dir();
         while (dir.has_value()) {
-            std::unordered_set<Vector2i>& dir_positions = edges[dir.value()];
+            std::vector<Vector2i>& dir_positions = edges[dir.value()];
+            const Vector2i start = dir_positions[dir_positions.size() - 1];
+            auto remove_along_offset = [start, &dir_positions](const Vector2i& offset) {
+                Vector2i current = start + offset;
+                auto it = std::ranges::find(dir_positions, current);
+                while (it != dir_positions.end()) {
+                    dir_positions.erase(it);
+                    current += offset;
+                    it = std::ranges::find(dir_positions, current);
+                }
+            };
             const auto [offset_first, offset_second] = edge_dir_offsets(dir.value());
-            const Vector2i start = *dir_positions.begin();
-            Vector2i current = start + offset_first;
-            while (dir_positions.contains(current)) {
-                dir_positions.erase(current);
-                current += offset_first;
-            }
-            current = start + offset_second;
-            while (dir_positions.contains(current)) {
-                dir_positions.erase(current);
-                current += offset_second;
-            }
-            dir_positions.erase(start);
+            remove_along_offset(offset_first);
+            remove_along_offset(offset_second);
+            dir_positions.pop_back();
             ++count;
             dir = next_dir();
         }
