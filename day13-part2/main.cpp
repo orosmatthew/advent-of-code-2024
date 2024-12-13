@@ -125,7 +125,7 @@ private:
 
     [[nodiscard]] std::optional<Presses> presses_to_win() const
     {
-        // equation derivations can be found in day13-part2/math.md
+        // equation derivations can be found in day13-part2/math.pdf
         Presses presses {};
         const int64_t a_num = m_prize.y * m_button_b.x - m_prize.x * m_button_b.y;
         const int64_t a_denom = m_button_a.y * m_button_b.x - m_button_a.x * m_button_b.y;
