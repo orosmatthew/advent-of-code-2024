@@ -133,12 +133,18 @@ private:
             return std::nullopt;
         }
         presses.button_a = a_num / a_denom;
+        if (presses.button_a < 0) {
+            return std::nullopt;
+        }
         const int b_num = -m_button_a.x * presses.button_a + m_prize.x;
         const int b_denom = m_button_b.x;
         if (b_num % b_denom != 0) {
             return std::nullopt;
         }
         presses.button_b = b_num / b_denom;
+        if (presses.button_b < 0) {
+            return std::nullopt;
+        }
         return presses;
     }
 
