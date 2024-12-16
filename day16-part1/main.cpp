@@ -202,30 +202,35 @@ private:
 
     bool dijkstra_impl(std::vector<DijkstraState>& grid, std::vector<DijkstraState*>& queue) const
     {
-        if (queue.empty()) {
+        DijkstraState* next_state = nullptr;
+        uint64_t min_score = std::numeric_limits<uint64_t>::max();
+        size_t next_queue_index = 0;
+        for (size_t i = 0; i < queue.size(); ++i) {
+            if (!queue[i]->explored && queue[i]->min_score <= min_score) {
+                next_state = queue[i];
+                min_score = queue[i]->min_score;
+                next_queue_index = i;
+            }
+        }
+        if (next_state == nullptr) {
             return false;
         }
-        std::ranges::sort(queue, [](const DijkstraState* a, const DijkstraState* b) {
-            return b->min_score < a->min_score;
-        });
-        // ReSharper disable once CppUseStructuredBinding
-        DijkstraState& next_state = *queue[queue.size() - 1];
         for (constexpr std::array dirs { Dir::north, Dir::east, Dir::south, Dir::west }; const Dir dir : dirs) {
-            const Vector2i neighbor_pos = next_state.pos + dir_offset(dir);
+            const Vector2i neighbor_pos = next_state->pos + dir_offset(dir);
             const size_t neighbor_index = index(neighbor_pos);
             // ReSharper disable once CppUseStructuredBinding
             DijkstraState& neighbor_state = grid[neighbor_index];
             if (m_walls[neighbor_index] || neighbor_state.explored) {
                 continue;
             }
-            if (const uint64_t neighbor_score = next_state.min_score + (dir == next_state.dir ? 1 : 1001);
+            if (const uint64_t neighbor_score = next_state->min_score + (dir == next_state->dir ? 1 : 1001);
                 neighbor_score < neighbor_state.min_score) {
                 neighbor_state.min_score = neighbor_score;
                 neighbor_state.dir = dir;
             }
         }
-        next_state.explored = true;
-        queue.pop_back();
+        next_state->explored = true;
+        queue.erase(queue.begin() + static_cast<int64_t>(next_queue_index));
         return true;
     }
 
