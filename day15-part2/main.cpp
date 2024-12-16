@@ -81,18 +81,18 @@ struct Vector2i {
     }
 };
 
-enum class Dir { north, east, south, west };
+enum class Dir { dir_north, dir_east, dir_south, dir_west };
 
 [[maybe_unused]] std::string dir_str(const Dir dir)
 {
     switch (dir) {
-    case Dir::north:
+    case Dir::dir_north:
         return "^";
-    case Dir::east:
+    case Dir::dir_east:
         return ">";
-    case Dir::south:
+    case Dir::dir_south:
         return "v";
-    case Dir::west:
+    case Dir::dir_west:
         return "<";
     }
     std::unreachable();
@@ -101,13 +101,13 @@ enum class Dir { north, east, south, west };
 static Vector2i dir_offset(const Dir dir)
 {
     switch (dir) {
-    case Dir::north:
+    case Dir::dir_north:
         return { 0, -1 };
-    case Dir::east:
+    case Dir::dir_east:
         return { 1, 0 };
-    case Dir::south:
+    case Dir::dir_south:
         return { 0, 1 };
-    case Dir::west:
+    case Dir::dir_west:
         return { -1, 0 };
     }
     std::unreachable();
@@ -225,16 +225,16 @@ private:
             }
             switch (data[pos]) {
             case '^':
-                moves.push_back(Dir::north);
+                moves.push_back(Dir::dir_north);
                 break;
             case '>':
-                moves.push_back(Dir::east);
+                moves.push_back(Dir::dir_east);
                 break;
             case 'v':
-                moves.push_back(Dir::south);
+                moves.push_back(Dir::dir_south);
                 break;
             case '<':
-                moves.push_back(Dir::west);
+                moves.push_back(Dir::dir_west);
                 break;
             default:
                 assert(false);
@@ -283,8 +283,8 @@ private:
         if (at(box_pos) == GridState::box_end) {
             box_pos -= Vector2i { 1, 0 };
         }
-        if (dir == Dir::east || dir == Dir::west) {
-            const Vector2i next_pos = box_pos + (dir == Dir::east ? Vector2i { 2, 0 } : Vector2i { -1, 0 });
+        if (dir == Dir::dir_east || dir == Dir::dir_west) {
+            const Vector2i next_pos = box_pos + (dir == Dir::dir_east ? Vector2i { 2, 0 } : Vector2i { -1, 0 });
             const GridState next_state = at(next_pos);
             if (next_state == GridState::empty) {
                 return true;
@@ -322,10 +322,10 @@ private:
         auto move_self = [this, box_pos, offset, dir] {
             at(box_pos + offset) = GridState::box_start;
             at(box_pos + Vector2i { 1, 0 } + offset) = GridState::box_end;
-            if (dir == Dir::east) {
+            if (dir == Dir::dir_east) {
                 at(box_pos) = GridState::empty;
             }
-            else if (dir == Dir::west) {
+            else if (dir == Dir::dir_west) {
                 at(box_pos - offset) = GridState::empty;
             }
             else {
@@ -333,15 +333,15 @@ private:
                 at(box_pos + Vector2i { 1, 0 }) = GridState::empty;
             }
         };
-        if (dir == Dir::east || dir == Dir::west) {
-            const Vector2i next_pos = box_pos + (dir == Dir::east ? Vector2i { 2, 0 } : Vector2i { -1, 0 });
+        if (dir == Dir::dir_east || dir == Dir::dir_west) {
+            const Vector2i next_pos = box_pos + (dir == Dir::dir_east ? Vector2i { 2, 0 } : Vector2i { -1, 0 });
             const GridState next_state = at(next_pos);
             assert(next_state != GridState::wall);
             if (next_state == GridState::box_start || next_state == GridState::box_end) {
                 move_box(next_pos, dir);
             }
             assert(
-                (dir == Dir::east ? at(box_pos + Vector2i { 1, 0 } + offset) : at(box_pos + offset))
+                (dir == Dir::dir_east ? at(box_pos + Vector2i { 1, 0 } + offset) : at(box_pos + offset))
                 == GridState::empty);
             move_self();
             return;

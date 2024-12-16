@@ -80,18 +80,18 @@ struct Vector2i {
     }
 };
 
-enum class Dir { north, east, south, west };
+enum class Dir { dir_north, dir_east, dir_south, dir_west };
 
 static Vector2i dir_offset(const Dir dir)
 {
     switch (dir) {
-    case Dir::north:
+    case Dir::dir_north:
         return { 0, -1 };
-    case Dir::east:
+    case Dir::dir_east:
         return { 1, 0 };
-    case Dir::south:
+    case Dir::dir_south:
         return { 0, 1 };
-    case Dir::west:
+    case Dir::dir_west:
         return { -1, 0 };
     }
     std::unreachable();
@@ -199,16 +199,16 @@ private:
             }
             switch (data[pos]) {
             case '^':
-                moves.push_back(Dir::north);
+                moves.push_back(Dir::dir_north);
                 break;
             case '>':
-                moves.push_back(Dir::east);
+                moves.push_back(Dir::dir_east);
                 break;
             case 'v':
-                moves.push_back(Dir::south);
+                moves.push_back(Dir::dir_south);
                 break;
             case '<':
-                moves.push_back(Dir::west);
+                moves.push_back(Dir::dir_west);
                 break;
             default:
                 assert(false);
