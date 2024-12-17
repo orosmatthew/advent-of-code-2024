@@ -84,18 +84,18 @@ struct Vector2i {
     }
 };
 
-enum class Dir { dir_north, dir_east, dir_south, dir_west };
+enum class Dir { north, east, south, west };
 
 [[maybe_unused]] std::string dir_str(const Dir dir)
 {
     switch (dir) {
-    case Dir::dir_north:
+    case Dir::north:
         return "^";
-    case Dir::dir_east:
+    case Dir::east:
         return ">";
-    case Dir::dir_south:
+    case Dir::south:
         return "v";
-    case Dir::dir_west:
+    case Dir::west:
         return "<";
     }
     std::unreachable();
@@ -104,13 +104,13 @@ enum class Dir { dir_north, dir_east, dir_south, dir_west };
 static Vector2i dir_offset(const Dir dir)
 {
     switch (dir) {
-    case Dir::dir_north:
+    case Dir::north:
         return { 0, -1 };
-    case Dir::dir_east:
+    case Dir::east:
         return { 1, 0 };
-    case Dir::dir_south:
+    case Dir::south:
         return { 0, 1 };
-    case Dir::dir_west:
+    case Dir::west:
         return { -1, 0 };
     }
     std::unreachable();
@@ -217,8 +217,7 @@ private:
         }
         DijkstraState* next_state = queue.top();
         queue.pop();
-        for (constexpr std::array dirs { Dir::dir_north, Dir::dir_east, Dir::dir_south, Dir::dir_west };
-             const Dir dir : dirs) {
+        for (constexpr std::array dirs { Dir::north, Dir::east, Dir::south, Dir::west }; const Dir dir : dirs) {
             const Vector2i neighbor_pos = next_state->pos + dir_offset(dir);
             const size_t neighbor_index = index(neighbor_pos);
             // ReSharper disable once CppUseStructuredBinding
@@ -254,7 +253,7 @@ private:
         }
         DijkstraState& start_state = grid[index(start)];
         start_state.min_score = 0;
-        start_state.dir = Dir::dir_east;
+        start_state.dir = Dir::east;
         DijkstraQueue queue;
         queue.push(&start_state);
         while (dijkstra_impl(grid, queue)) { }
