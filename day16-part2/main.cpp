@@ -7,12 +7,12 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <list>
 #include <queue>
 #include <ranges>
 #include <sstream>
 #include <unordered_set>
 #include <utility>
-#include <vector>
 
 static std::string read_data(const std::filesystem::path& path)
 {
@@ -224,7 +224,7 @@ private:
     };
 
     struct DijkstraStateCmp {
-        bool operator()(const DijkstraState* a, const DijkstraState* b) const
+        bool operator()(const DijkstraState* a, const DijkstraState* b) const noexcept
         {
             return a->min_score > b->min_score;
         }
@@ -344,7 +344,7 @@ int main()
     const std::string data = read_data("./day16-part2/input.txt");
 
 #ifdef BENCHMARK
-    constexpr int n_runs = 10;
+    constexpr int n_runs = 20;
     double time_running_total = 0.0;
 
     for (int n_run = 0; n_run < n_runs; ++n_run) {
