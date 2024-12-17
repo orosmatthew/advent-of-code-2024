@@ -6,6 +6,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <queue>
 #include <ranges>
 #include <sstream>
 #include <utility>
@@ -182,6 +183,15 @@ private:
         std::optional<Dir> dir;
     };
 
+    struct DijkstraStateCmp {
+        bool operator()(const DijkstraState* a, const DijkstraState* b) const
+        {
+            return a->min_score > b->min_score;
+        }
+    };
+
+    using DijkstraQueue = std::priority_queue<DijkstraState*, std::vector<DijkstraState*>, DijkstraStateCmp>;
+
     [[maybe_unused]] void print_dijkstra(const std::vector<DijkstraState>& grid) const
     {
         for (int y = 0; y < m_size.y; ++y) {
@@ -200,28 +210,20 @@ private:
         }
     }
 
-    bool dijkstra_impl(std::vector<DijkstraState>& grid, std::vector<DijkstraState*>& queue) const
+    bool dijkstra_impl(std::vector<DijkstraState>& grid, DijkstraQueue& queue) const
     {
-        DijkstraState* next_state = nullptr;
-        uint64_t min_score = std::numeric_limits<uint64_t>::max();
-        size_t next_queue_index = 0;
-        for (size_t i = 0; i < queue.size(); ++i) {
-            if (!queue[i]->explored && queue[i]->min_score <= min_score) {
-                next_state = queue[i];
-                min_score = queue[i]->min_score;
-                next_queue_index = i;
-            }
-        }
-        if (next_state == nullptr) {
+        if (queue.empty()) {
             return false;
         }
+        DijkstraState* next_state = queue.top();
+        queue.pop();
         for (constexpr std::array dirs { Dir::dir_north, Dir::dir_east, Dir::dir_south, Dir::dir_west };
              const Dir dir : dirs) {
             const Vector2i neighbor_pos = next_state->pos + dir_offset(dir);
             const size_t neighbor_index = index(neighbor_pos);
             // ReSharper disable once CppUseStructuredBinding
             DijkstraState& neighbor_state = grid[neighbor_index];
-            if (m_walls[neighbor_index] || neighbor_state.explored) {
+            if (m_walls[neighbor_index]) {
                 continue;
             }
             if (const uint64_t neighbor_score = next_state->min_score + (dir == next_state->dir.value() ? 1 : 1001);
@@ -229,9 +231,11 @@ private:
                 neighbor_state.min_score = neighbor_score;
                 neighbor_state.dir = dir;
             }
+            if (!neighbor_state.explored) {
+                queue.push(&neighbor_state);
+            }
         }
         next_state->explored = true;
-        queue.erase(queue.begin() + static_cast<int64_t>(next_queue_index));
         return true;
     }
 
@@ -248,13 +252,11 @@ private:
                       .dir = std::nullopt });
             }
         }
-        grid[index(start)] = { .pos = start, .explored = false, .min_score = 0, .dir = Dir::dir_east };
-        std::vector<DijkstraState*> queue;
-        for (size_t i = 0; i < m_size.x * m_size.y; ++i) {
-            if (!m_walls[i]) {
-                queue.push_back(&grid[i]);
-            }
-        }
+        DijkstraState& start_state = grid[index(start)];
+        start_state.min_score = 0;
+        start_state.dir = Dir::dir_east;
+        DijkstraQueue queue;
+        queue.push(&start_state);
         while (dijkstra_impl(grid, queue)) { }
         return grid[index(end)].min_score;
     }
@@ -276,7 +278,7 @@ int main()
     const std::string data = read_data("./day16-part1/input.txt");
 
 #ifdef BENCHMARK
-    constexpr int n_runs = 100;
+    constexpr int n_runs = 10000;
     double time_running_total = 0.0;
 
     for (int n_run = 0; n_run < n_runs; ++n_run) {
