@@ -190,7 +190,7 @@ public:
         return { std::move(walls), { width.value(), y }, start_pos.value(), end_pos.value() };
     }
 
-    [[nodiscard]] uint64_t solve_min_points() const
+    [[nodiscard]] uint64_t best_tiles_count() const
     {
         const std::vector<DijkstraState> grid = dijkstra_final_state();
         return best_paths_grid_count(grid);
@@ -336,7 +336,7 @@ private:
 static uint64_t solve(const std::string& data)
 {
     const Maze maze = Maze::parse(data);
-    return maze.solve_min_points();
+    return maze.best_tiles_count();
 }
 
 int main()
