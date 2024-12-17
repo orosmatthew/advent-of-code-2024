@@ -7,8 +7,10 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <queue>
 #include <ranges>
 #include <sstream>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -84,18 +86,22 @@ struct Vector2i {
     }
 };
 
+template <>
+struct std::hash<Vector2i> {
+    size_t operator()(const Vector2i& vector) const noexcept
+    {
+        const size_t hash1 = std::hash<int64_t>()(vector.x);
+        const size_t hash2 = std::hash<int64_t>()(vector.y);
+        return hash1 ^ hash2 << 1;
+    }
+};
+
 enum class Dir { north = 0, east = 1, south = 2, west = 3 };
 constexpr std::array dirs { Dir::north, Dir::east, Dir::south, Dir::west };
 
 static int dir_index(const Dir dir)
 {
     return static_cast<int>(dir);
-}
-
-static Dir index_dir(const int index)
-{
-    assert(index >= 0 && index <= 3);
-    return static_cast<Dir>(index);
 }
 
 [[maybe_unused]] static std::string dir_str(const Dir dir)
@@ -139,21 +145,6 @@ static std::array<Dir, 2> rotate_dirs(const Dir dir)
         return { Dir::east, Dir::west };
     case Dir::west:
         return { Dir::south, Dir::north };
-    }
-    std::unreachable();
-}
-
-static Dir opposite_dir(const Dir dir)
-{
-    switch (dir) {
-    case Dir::north:
-        return Dir::south;
-    case Dir::east:
-        return Dir::west;
-    case Dir::south:
-        return Dir::north;
-    case Dir::west:
-        return Dir::east;
     }
     std::unreachable();
 }
@@ -202,8 +193,7 @@ public:
     [[nodiscard]] uint64_t solve_min_points() const
     {
         const std::vector<DijkstraState> grid = dijkstra_final_state();
-        // print_dijkstra(grid);
-        return 1;
+        return best_paths_grid_count(grid);
     }
 
 private:
@@ -233,50 +223,51 @@ private:
         std::array<DijkstraState*, 6> prev_states;
     };
 
-    bool dijkstra_impl(std::vector<DijkstraState>& grid, std::vector<DijkstraState*>& queue) const
-    {
-        DijkstraState* next_state = nullptr;
-        uint64_t min_score = std::numeric_limits<uint64_t>::max();
-        size_t next_queue_index = 0;
-        for (size_t i = 0; i < queue.size(); ++i) {
-            if (!queue[i]->explored && queue[i]->min_score <= min_score) {
-                next_state = queue[i];
-                min_score = queue[i]->min_score;
-                next_queue_index = i;
-            }
+    struct DijkstraStateCmp {
+        bool operator()(const DijkstraState* a, const DijkstraState* b) const
+        {
+            return a->min_score > b->min_score;
         }
-        if (next_state == nullptr) {
+    };
+
+    using DijkstraQueue = std::priority_queue<DijkstraState*, std::vector<DijkstraState*>, DijkstraStateCmp>;
+
+    bool dijkstra_impl(std::vector<DijkstraState>& grid, DijkstraQueue& queue) const
+    {
+        if (queue.empty()) {
             return false;
         }
+        DijkstraState* next_state = queue.top();
+        queue.pop();
         auto update_score
-            = [next_state](DijkstraState& neighbor_state, const std::optional<Dir> move_dir = std::nullopt) {
-                  const uint64_t neighbor_score = next_state->min_score + (move_dir.has_value() ? 1 : 1000);
+            = [next_state](DijkstraState& neighbor_state, const uint64_t neighbor_score, const int prev_state_index) {
                   if (neighbor_score < neighbor_state.min_score) {
                       neighbor_state.min_score = neighbor_score;
-                  }
-                  if (neighbor_score == neighbor_state.min_score) {
                       neighbor_state.prev_states = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
                   }
                   if (neighbor_score <= neighbor_state.min_score) {
-                      if (move_dir.has_value()) {
-                          neighbor_state.prev_states[dir_index(move_dir.value())] = next_state;
-                      }
-                      else {
-                          neighbor_state.prev_states[4] = next_state;
-                      }
+                      neighbor_state.prev_states[prev_state_index] = next_state;
                   }
               };
-        for (const Dir dir : rotate_dirs(next_state->dir)) {
-            DijkstraState& neighbor_state = grid[d_index(next_state->pos, dir)];
-            update_score(neighbor_state);
+        const std::array<Dir, 2> r_dirs = rotate_dirs(next_state->dir);
+        for (int i = 0; i < 2; ++i) {
+            DijkstraState& neighbor_state = grid[d_index(next_state->pos, r_dirs[i])];
+            const uint64_t neighbor_score = next_state->min_score + 1000;
+            update_score(neighbor_state, neighbor_score, i + 4);
+            if (!neighbor_state.explored) {
+                queue.push(&neighbor_state);
+            }
         }
         const Vector2i neighbor_pos = next_state->pos + dir_offset(next_state->dir);
         DijkstraState& neighbor_state = grid[d_index(neighbor_pos, next_state->dir)];
+        const uint64_t neighbor_score = next_state->min_score + 1;
         if (!m_walls[index(neighbor_pos)]) {
-            update_score(neighbor_state, next_state->dir);
+            update_score(neighbor_state, neighbor_score, dir_index(next_state->dir));
+            if (!neighbor_state.explored) {
+                queue.push(&neighbor_state);
+            }
         }
         next_state->explored = true;
-        queue.erase(queue.begin() + static_cast<int64_t>(next_queue_index));
         return true;
     }
 
@@ -298,87 +289,43 @@ private:
         }
         DijkstraState& start_state = grid[d_index(m_start_pos, Dir::east)];
         start_state.min_score = 0;
-        std::vector<DijkstraState*> queue;
-        for (int y = 0; y < m_size.y; ++y) {
-            for (int x = 0; x < m_size.x; ++x) {
-                if (!m_walls[index({ x, y })]) {
-                    for (const Dir dir : dirs) {
-                        queue.push_back(&grid[d_index({ x, y }, dir)]);
-                    }
-                }
-            }
-        }
+        DijkstraQueue queue;
+        queue.push(&start_state);
         while (dijkstra_impl(grid, queue)) { }
         return grid;
     }
 
-    // [[nodiscard]] uint64_t best_paths_grid_count(const std::vector<DijkstraState>& grid) const
-    // {
-    //     if (score > grid[index(m_end_pos)].min_score) {
-    //         return 0;
-    //     }
-    //     if (pos == m_end_pos) {
-    //         return 1;
-    //     }
-    //     uint64_t count = 0;
-    //     for (constexpr std::array dirs { Dir::north, Dir::east, Dir::south, Dir::west }; const Dir dir : dirs) {
-    //         const Vector2i neighbor_pos = pos + dir_offset(dir);
-    //         const size_t neighbor_index = index(neighbor_pos);
-    //         if (std::optional<Dir> neighbor_dir = grid[neighbor_index].dir;
-    //             neighbor_dir.has_value() && neighbor_dir.value() != opposite_dir(dir)) {
-    //             const uint64_t neighbor_count
-    //                 = best_paths_grid_count(grid, neighbor_pos, score + (neighbor_dir == dir ? 1 : 1001));
-    //             if (neighbor_count != 0) {
-    //                 count += 1;
-    //             }
-    //         }
-    //     }
-    //     return count;
-    // }
-
-    // [[nodiscard]] uint64_t best_paths_grid_count(const std::vector<DijkstraState>& grid) const
-    // {
-    //     std::vector<bool> visited;
-    //     visited.resize(m_size.x * m_size.y, false);
-    //     std::vector<Vector2i> queue;
-    //     queue.push_back(m_end_pos + dir_offset(opposite_dir(grid[index(m_end_pos)].dir.value())));
-    //     uint64_t count = 1;
-    //     std::vector<Vector2i> best_positions;
-    //     while (!queue.empty()) {
-    //         ++count;
-    //         const Vector2i pos = queue[queue.size() - 1];
-    //         best_positions.push_back(pos);
-    //         visited[index(pos)] = true;
-    //         queue.pop_back();
-    //         for (constexpr std::array dirs { Dir::north, Dir::east, Dir::south, Dir::west }; const Dir dir : dirs) {
-    //             const Vector2i neighbor_pos = pos + dir_offset(dir);
-    //             const size_t neighbor_index = index(neighbor_pos);
-    //             if (visited[neighbor_index]) {
-    //                 continue;
-    //             }
-    //             if (std::optional<Dir> neighbor_dir = grid[neighbor_index].dir;
-    //                 neighbor_dir.has_value() && neighbor_dir.value() != dir) {
-    //                 queue.push_back(neighbor_pos);
-    //             }
-    //         }
-    //     }
-    //     // print_dijkstra(grid);
-    //     // for (int y = 0; y < m_size.y; ++y) {
-    //     //     for (int x = 0; x < m_size.x; ++x) {
-    //     //         if (const size_t i = index({ x, y }); m_walls[i]) {
-    //     //             std::cout << "#";
-    //     //         }
-    //     //         else if (std::ranges::find(best_positions, Vector2i { x, y }) != best_positions.end()) {
-    //     //             std::cout << "O";
-    //     //         }
-    //     //         else {
-    //     //             std::cout << ".";
-    //     //         }
-    //     //     }
-    //     //     std::cout << std::endl;
-    //     // }
-    //     return count;
-    // }
+    [[nodiscard]] uint64_t best_paths_grid_count(const std::vector<DijkstraState>& grid) const
+    {
+        uint64_t end_min_score = std::numeric_limits<uint64_t>::max();
+        for (const Dir dir : dirs) {
+            if (const uint64_t score = grid[d_index(m_end_pos, dir)].min_score; score < end_min_score) {
+                end_min_score = score;
+            }
+        }
+        std::vector<const DijkstraState*> queue;
+        for (const Dir dir : dirs) {
+            if (const DijkstraState& state = grid[d_index(m_end_pos, dir)]; state.min_score == end_min_score) {
+                for (const DijkstraState* prev : state.prev_states) {
+                    if (prev != nullptr) {
+                        queue.push_back(prev);
+                    }
+                }
+            }
+        }
+        std::unordered_set best_positions { m_end_pos, m_start_pos };
+        while (!queue.empty()) {
+            const DijkstraState& state = *queue[queue.size() - 1];
+            best_positions.insert(state.pos);
+            queue.pop_back();
+            for (const DijkstraState* prev : state.prev_states) {
+                if (prev != nullptr) {
+                    queue.push_back(prev);
+                }
+            }
+        }
+        return best_positions.size();
+    }
 
     std::vector<bool> m_walls;
     Vector2i m_size;
