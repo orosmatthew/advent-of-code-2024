@@ -47,44 +47,22 @@ public:
         uint64_t c;
     };
 
-    static Computer parse(const std::string& data)
-    {
-        int pos = 0;
-        pos += 12; // "Register A: "
-        Registers registers {};
-        registers.a = parse_int(data, pos);
-        pos += 13; // "\nRegister B: "
-        registers.b = parse_int(data, pos);
-        pos += 13; // "\nRegister C: "
-        registers.c = parse_int(data, pos);
-        pos += 11; // "\n\nProgram: "
-        std::vector<uint64_t> program;
-        do {
-            program.push_back(parse_int(data, pos));
-            ++pos; // ","
-            program.push_back(parse_int(data, pos));
-            ++pos; // "," or "\n"
-        } while (pos < data.size());
-        std::vector<Instruction> instructions;
-        return { registers, program_to_instructions(program) };
-    }
-
     static Computer from_registers_program(Registers registers, const std::span<const uint64_t> program)
     {
         return { registers, program_to_instructions(program) };
     }
 
-    void replace_registers_program_and_reset(const Registers& registers, const std::span<const uint64_t> program)
+    void replace_registers_and_reset(const Registers& registers)
     {
         m_registers = registers;
-        m_instructions = program_to_instructions(program);
         m_instruction_pointer = 0;
         m_output.clear();
         m_ran = false;
     }
 
-    [[nodiscard]] std::span<const uint64_t> output() const
+    [[nodiscard]] std::span<const uint64_t> output()
     {
+        run();
         return m_output;
     }
 
@@ -287,15 +265,82 @@ private:
     bool m_ran = false;
 };
 
-static std::string solve(const std::string& data)
+static void parse_registers_program(
+    const std::string& data, Computer::Registers& registers, std::vector<uint64_t>& program)
 {
-    Computer computer = Computer::parse(data);
-    return computer.output_str();
+    int pos = 0;
+    pos += 12; // "Register A: "
+    registers.a = parse_int(data, pos);
+    pos += 13; // "\nRegister B: "
+    registers.b = parse_int(data, pos);
+    pos += 13; // "\nRegister C: "
+    registers.c = parse_int(data, pos);
+    pos += 11; // "\n\nProgram: "
+    program.clear();
+    do {
+        program.push_back(parse_int(data, pos));
+        ++pos; // ","
+        program.push_back(parse_int(data, pos));
+        ++pos; // "," or "\n"
+    } while (pos < data.size());
+}
+
+static uint64_t register_a_to_output_program(const std::span<const uint64_t> program)
+{
+    Computer::Registers registers { .a = 0, .b = 0, .c = 0 };
+    Computer computer = Computer::from_registers_program(registers, program);
+    std::vector<uint64_t> values;
+    values.push_back(0);
+
+    for (uint64_t i = 0; i < 8; ++i) {
+        registers.a = i;
+        computer.replace_registers_and_reset(registers);
+        const std::span<const uint64_t> output = computer.output();
+        std::cout << "here" << std::endl;
+        if (output[output.size() - 1] == program[program.size() - 1]) {
+            break;
+        }
+    }
+    uint64_t register_a_copy = registers.a;
+    for (int i = 0; i < 8; ++i) {
+        registers.a = 8 * 8 * i * 8 + register_a_copy;
+        computer.replace_registers_and_reset(registers);
+        const std::span<const uint64_t> output = computer.output();
+        std::cout << "here" << std::endl;
+        // if (output.size() < 2) {
+        //     continue;
+        // }
+        // if (output[output.size() - 2] == program[program.size() - 2]) {
+        //     break;
+        // }
+    }
+    // register_a_copy = registers.a;
+    // for (int i = 0; i < 8; ++i) {
+    //     registers.a = register_a_copy * 8 + (i << 3);
+    //     computer.replace_registers_and_reset(registers);
+    //     const std::span<const uint64_t> output = computer.output();
+    //     std::cout << "here" << std::endl;
+    //     if (output.size() < 3) {
+    //         continue;
+    //     }
+    //     if (output[output.size() - 3] == program[program.size() - 2]) {
+    //         break;
+    //     }
+    // }
+    return 1;
+}
+
+static uint64_t solve(const std::string& data)
+{
+    Computer::Registers registers {};
+    std::vector<uint64_t> program;
+    parse_registers_program(data, registers, program);
+    return register_a_to_output_program(program);
 }
 
 int main()
 {
-    const std::string data = read_data("./day17-part2/sample.txt");
+    const std::string data = read_data("./day17-part2/input.txt");
 
 #ifdef BENCHMARK
     constexpr int n_runs = 100000;
@@ -306,12 +351,12 @@ int main()
         // ReSharper disable once CppDFAUnusedValue
         // ReSharper disable once CppDFAUnreadVariable
         // ReSharper disable once CppDeclaratorNeverUsed
-        volatile std::string result = solve(data);
+        volatile auto result = solve(data);
         auto end = std::chrono::high_resolution_clock::now();
         time_running_total += std::chrono::duration<double, std::nano>(end - start).count();
     }
     std::printf("Average ns: %d\n", static_cast<int>(std::round(time_running_total / n_runs)));
 #else
-    std::printf("%s\n", solve(data).c_str());
+    std::printf("%llu\n", solve(data));
 #endif
 }
