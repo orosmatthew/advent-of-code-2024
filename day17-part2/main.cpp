@@ -9,6 +9,7 @@
 #include <iostream>
 #include <queue>
 #include <ranges>
+#include <span>
 #include <sstream>
 #include <unordered_set>
 #include <utility>
@@ -40,6 +41,12 @@ static uint64_t parse_int(const std::string& string, int& pos)
 
 class Computer {
 public:
+    struct Registers {
+        uint64_t a;
+        uint64_t b;
+        uint64_t c;
+    };
+
     static Computer parse(const std::string& data)
     {
         int pos = 0;
@@ -51,34 +58,41 @@ public:
         pos += 13; // "\nRegister C: "
         registers.c = parse_int(data, pos);
         pos += 11; // "\n\nProgram: "
-        std::vector<Instruction> instructions;
+        std::vector<uint64_t> program;
         do {
-            Instruction instruction;
-            instruction.type = opcode_to_instruction_type(parse_int(data, pos));
+            program.push_back(parse_int(data, pos));
             ++pos; // ","
-            uint64_t operand = parse_int(data, pos);
-            switch (instruction_operand_type(instruction.type)) {
-            case OperandType::literal:
-                instruction.operand = operand;
-                break;
-            case OperandType::combo:
-                instruction.operand = parse_combo_operand(operand);
-                break;
-            case OperandType::ignore:
-                instruction.operand = std::nullopt;
-                break;
-            }
-            instructions.push_back(instruction);
+            program.push_back(parse_int(data, pos));
             ++pos; // "," or "\n"
         } while (pos < data.size());
-        return { registers, std::move(instructions) };
+        std::vector<Instruction> instructions;
+        return { registers, program_to_instructions(program) };
+    }
+
+    static Computer from_registers_program(Registers registers, const std::span<const uint64_t> program)
+    {
+        return { registers, program_to_instructions(program) };
+    }
+
+    void replace_registers_program_and_reset(const Registers& registers, const std::span<const uint64_t> program)
+    {
+        m_registers = registers;
+        m_instructions = program_to_instructions(program);
+        m_instruction_pointer = 0;
+        m_output.clear();
+        m_ran = false;
+    }
+
+    [[nodiscard]] std::span<const uint64_t> output() const
+    {
+        return m_output;
     }
 
     std::string output_str()
     {
-        const std::vector<uint64_t> output = run();
+        run();
         std::string str;
-        for (const uint64_t value : output) {
+        for (const uint64_t value : m_output) {
             str.append(std::to_string(value));
             str.append(",");
         }
@@ -88,12 +102,6 @@ public:
 
 private:
     enum class RegisterType { a, b, c };
-
-    struct Registers {
-        uint64_t a;
-        uint64_t b;
-        uint64_t c;
-    };
 
     enum class InstructionType { adv, bxl, bst, jnz, bxc, out, bdv, cdv };
 
@@ -154,9 +162,33 @@ private:
         std::optional<Operand> operand;
     };
 
+    static std::vector<Instruction> program_to_instructions(const std::span<const uint64_t> program)
+    {
+        assert(program.size() % 2 == 0);
+        std::vector<Instruction> instructions;
+        for (int i = 0; i < program.size(); i += 2) {
+            Instruction instruction;
+            instruction.type = opcode_to_instruction_type(program[i]);
+            uint64_t operand = program[i + 1];
+            switch (instruction_operand_type(instruction.type)) {
+            case OperandType::literal:
+                instruction.operand = operand;
+                break;
+            case OperandType::combo:
+                instruction.operand = parse_combo_operand(operand);
+                break;
+            case OperandType::ignore:
+                instruction.operand = std::nullopt;
+                break;
+            }
+            instructions.push_back(instruction);
+        }
+        return instructions;
+    }
+
     [[nodiscard]] uint64_t combo_operand_value(const Operand operand) const
     {
-        if (const uint64_t* value = std::get_if<uint64_t>(&operand)) {
+        if (const auto* value = std::get_if<uint64_t>(&operand)) {
             return *value;
         }
         switch (std::get<RegisterType>(operand)) {
@@ -187,9 +219,11 @@ private:
         std::unreachable();
     }
 
-    std::vector<uint64_t> run()
+    void run()
     {
-        std::vector<uint64_t> output;
+        if (m_ran) {
+            return;
+        }
         while (m_instruction_pointer / 2 < m_instructions.size()) {
             const auto& [type, instruction_operand] = m_instructions[m_instruction_pointer / 2];
             const std::optional<uint64_t> operand = operand_value(type, instruction_operand);
@@ -221,7 +255,7 @@ private:
                 m_instruction_pointer += 2;
                 break;
             case InstructionType::out:
-                output.push_back(operand.value() % 8);
+                m_output.push_back(operand.value() % 8);
                 m_instruction_pointer += 2;
                 break;
             case InstructionType::bdv: {
@@ -238,7 +272,6 @@ private:
             } break;
             }
         }
-        return output;
     }
 
     Computer(const Registers& registers, const std::vector<Instruction>& instructions)
@@ -250,6 +283,8 @@ private:
     Registers m_registers;
     std::vector<Instruction> m_instructions;
     uint64_t m_instruction_pointer = 0;
+    std::vector<uint64_t> m_output;
+    bool m_ran = false;
 };
 
 static std::string solve(const std::string& data)
@@ -260,7 +295,7 @@ static std::string solve(const std::string& data)
 
 int main()
 {
-    const std::string data = read_data("./day17-part2/input.txt");
+    const std::string data = read_data("./day17-part2/sample.txt");
 
 #ifdef BENCHMARK
     constexpr int n_runs = 100000;
