@@ -42,3 +42,4 @@ Benchmarked on i5-12600k CPU compiled in Release with Clang 19.
 | Day 16 Part 2 | 617.20 ms    | 20         |
 | Day 17 Part 1 | 967 ns       | 100000     |
 | Day 17 Part 2 | 194.90 μs    | 100000     |
+| Day 18 Part 1 | 388.52 μs    | 10000      |

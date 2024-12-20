@@ -1,15 +1,10 @@
 #include <algorithm>
-#include <bitset>
-#include <cassert>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
-#include <functional>
-#include <iostream>
-#include <queue>
 #include <ranges>
-#include <span>
+#include <set>
 #include <sstream>
 #include <utility>
 #include <variant>
@@ -105,21 +100,6 @@ struct Vector2i {
 enum class Dir { north, east, south, west };
 constexpr std::array dirs { Dir::north, Dir::east, Dir::south, Dir::west };
 
-[[maybe_unused]] std::string dir_str(const Dir dir)
-{
-    switch (dir) {
-    case Dir::north:
-        return "^";
-    case Dir::east:
-        return ">";
-    case Dir::south:
-        return "v";
-    case Dir::west:
-        return "<";
-    }
-    std::unreachable();
-}
-
 static Vector2i dir_offset(const Dir dir)
 {
     switch (dir) {
@@ -155,8 +135,16 @@ public:
         return { std::move(walls), map_size };
     }
 
-    uint64_t steps_to_exit()
+    [[nodiscard]] uint64_t steps_to_exit() const
     {
+        const std::vector<DijkstraState> grid = dijkstra_final_state();
+        uint64_t count = 0;
+        const DijkstraState* state = &grid[index({ m_size.x - 1, m_size.y - 1 })];
+        while (state != nullptr) {
+            ++count;
+            state = state->prev_state;
+        }
+        return --count;
     }
 
 private:
@@ -186,19 +174,23 @@ private:
     struct DijkstraStateCmp {
         bool operator()(const DijkstraState* a, const DijkstraState* b) const noexcept
         {
-            return a->score > b->score;
+            if (a->score != b->score) {
+                return a->score < b->score;
+            }
+            return a < b;
         }
     };
 
-    using DijkstraQueue = std::priority_queue<DijkstraState*, std::vector<DijkstraState*>, DijkstraStateCmp>;
+    // using DijkstraQueue = std::priority_queue<DijkstraState*, std::vector<DijkstraState*>, DijkstraStateCmp>;
+    using DijkstraQueue = std::set<DijkstraState*, DijkstraStateCmp>;
 
-    bool dijkstra_impl(std::vector<DijkstraState>& grid, DijkstraQueue& queue) const
+    void dijkstra_step(std::vector<DijkstraState>& grid, DijkstraQueue& queue) const
     {
         if (queue.empty()) {
-            return false;
+            return;
         }
-        DijkstraState* current_state = queue.top();
-        queue.pop();
+        DijkstraState* current_state = *queue.begin();
+        queue.erase(queue.begin());
         for (const Dir dir : dirs) {
             const Vector2i neighbor_pos = current_state->pos + dir_offset(dir);
             if (!in_bounds(neighbor_pos)) {
@@ -213,12 +205,34 @@ private:
                 neighbor_state.score = neighbor_score;
                 neighbor_state.prev_state = current_state;
             }
-            if (!neighbor_state.explored) {
-                queue.push(&neighbor_state);
+            if (!neighbor_state.explored && !m_walls[neighbor_index]) {
+                queue.insert(&neighbor_state);
             }
         }
         current_state->explored = true;
-        return true;
+    }
+
+    [[nodiscard]] std::vector<DijkstraState> dijkstra_final_state() const
+    {
+        std::vector<DijkstraState> grid;
+        grid.reserve(m_size.x * m_size.y);
+        for (int y = 0; y < m_size.y; ++y) {
+            for (int x = 0; x < m_size.x; ++x) {
+                grid.push_back(
+                    { .pos = { x, y },
+                      .explored = false,
+                      .score = std::numeric_limits<uint64_t>::max(),
+                      .prev_state = nullptr });
+            }
+        }
+        DijkstraState& start_state = grid[index({ 0, 0 })];
+        start_state.score = 0;
+        DijkstraQueue queue;
+        queue.insert(&start_state);
+        while (!queue.empty()) {
+            dijkstra_step(grid, queue);
+        }
+        return grid;
     }
 
     std::vector<bool> m_walls;
@@ -229,15 +243,15 @@ private:
 static uint64_t solve(const std::string& data, const Vector2i& map_size, const int64_t bytes_fallen)
 {
     const Map map = Map::parse(data, map_size, bytes_fallen);
-    return 1;
+    return map.steps_to_exit();
 }
 
 int main()
 {
-    const std::string data = read_data("./day18-part1/sample.txt");
+    const std::string data = read_data("./day18-part1/input.txt");
 
 #ifdef BENCHMARK
-    constexpr int n_runs = 100000;
+    constexpr int n_runs = 10000;
     double time_running_total = 0.0;
 
     for (int n_run = 0; n_run < n_runs; ++n_run) {
@@ -245,12 +259,12 @@ int main()
         // ReSharper disable once CppDFAUnusedValue
         // ReSharper disable once CppDFAUnreadVariable
         // ReSharper disable once CppDeclaratorNeverUsed
-        volatile auto result = solve(data);
+        volatile auto result = solve(data, { 71, 71 }, 1024);
         auto end = std::chrono::high_resolution_clock::now();
         time_running_total += std::chrono::duration<double, std::nano>(end - start).count();
     }
     std::printf("Average ns: %d\n", static_cast<int>(std::round(time_running_total / n_runs)));
 #else
-    std::printf("%llu\n", solve(data, { 7, 7 }, 12));
+    std::printf("%llu\n", solve(data, { 71, 71 }, 1024));
 #endif
 }
