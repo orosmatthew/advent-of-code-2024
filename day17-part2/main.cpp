@@ -97,15 +97,15 @@ private:
     static OperandType instruction_operand_type(const InstructionType type)
     {
         switch (type) {
-        case InstructionType::bxl:
-        case InstructionType::jnz:
-            return OperandType::literal;
         case InstructionType::adv:
         case InstructionType::bst:
         case InstructionType::out:
         case InstructionType::bdv:
         case InstructionType::cdv:
             return OperandType::combo;
+        case InstructionType::bxl:
+        case InstructionType::jnz:
+            return OperandType::literal;
         case InstructionType::bxc:
             return OperandType::ignore;
         }
@@ -289,45 +289,44 @@ static uint64_t register_a_to_output_program(const std::span<const uint64_t> pro
 {
     Computer::Registers registers { .a = 0, .b = 0, .c = 0 };
     Computer computer = Computer::from_registers_program(registers, program);
-    std::vector<uint64_t> values;
-    values.push_back(0);
-
-    for (uint64_t i = 0; i < 8; ++i) {
-        registers.a = i;
-        computer.replace_registers_and_reset(registers);
-        const std::span<const uint64_t> output = computer.output();
-        std::cout << "here" << std::endl;
-        if (output[output.size() - 1] == program[program.size() - 1]) {
-            break;
+    using Matches = std::array<std::optional<uint64_t>, 8>;
+    auto try_values = [&registers, &computer, &program](
+                          const int program_index, const std::optional<uint64_t> prev_value) -> Matches {
+        Matches matches {};
+        for (uint64_t r = 0; r < 8; ++r) {
+            const uint64_t register_a = (prev_value.has_value() ? prev_value.value() : 0) * 8 + r;
+            registers.a = register_a;
+            computer.replace_registers_and_reset(registers);
+            const std::span<const uint64_t> output = computer.output();
+            if (output.size() - 1 - program_index >= output.size()) {
+                continue;
+            }
+            if (output[output.size() - 1 - program_index] == program[program.size() - 1 - program_index]) {
+                matches[r] = register_a;
+            }
         }
-    }
-    uint64_t register_a_copy = registers.a;
-    for (int i = 0; i < 8; ++i) {
-        registers.a = 8 * 8 * i * 8 + register_a_copy;
-        computer.replace_registers_and_reset(registers);
-        const std::span<const uint64_t> output = computer.output();
-        std::cout << "here" << std::endl;
-        // if (output.size() < 2) {
-        //     continue;
-        // }
-        // if (output[output.size() - 2] == program[program.size() - 2]) {
-        //     break;
-        // }
-    }
-    // register_a_copy = registers.a;
-    // for (int i = 0; i < 8; ++i) {
-    //     registers.a = register_a_copy * 8 + (i << 3);
-    //     computer.replace_registers_and_reset(registers);
-    //     const std::span<const uint64_t> output = computer.output();
-    //     std::cout << "here" << std::endl;
-    //     if (output.size() < 3) {
-    //         continue;
-    //     }
-    //     if (output[output.size() - 3] == program[program.size() - 2]) {
-    //         break;
-    //     }
-    // }
-    return 1;
+        return matches;
+    };
+    std::function<std::optional<uint64_t>(std::optional<uint64_t>, int)> find_program_matches
+        = [&](const std::optional<uint64_t> prev_match, const int count) -> std::optional<uint64_t> {
+        if (prev_match.has_value() && count == program.size()) {
+            registers.a = prev_match.value();
+            computer.replace_registers_and_reset(registers);
+            if (const std::span<const uint64_t> output = computer.output();
+                output.size() == program.size() && std::ranges::equal(output, program)) {
+                return prev_match.value();
+            }
+        }
+        for (const Matches matches = try_values(count, prev_match); const std::optional match : matches) {
+            if (match.has_value()) {
+                if (const std::optional<uint64_t> register_a = find_program_matches(match.value(), count + 1)) {
+                    return register_a;
+                }
+            }
+        }
+        return std::nullopt;
+    };
+    return find_program_matches(std::nullopt, 0).value();
 }
 
 static uint64_t solve(const std::string& data)
