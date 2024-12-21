@@ -147,7 +147,7 @@ int main()
     const std::string data = read_data("./day19-part1/input.txt");
 
 #ifdef BENCHMARK
-    constexpr int n_runs = 10000;
+    constexpr int n_runs = 1000;
     double time_running_total = 0.0;
 
     for (int n_run = 0; n_run < n_runs; ++n_run) {
