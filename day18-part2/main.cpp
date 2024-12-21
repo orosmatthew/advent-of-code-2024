@@ -279,7 +279,7 @@ static std::string solve(const std::string& data, const Vector2i& map_size)
 
 int main()
 {
-    const std::string data = read_data("./day18-part1/input.txt");
+    const std::string data = read_data("./day18-part2/input.txt");
 
 #ifdef BENCHMARK
     constexpr int n_runs = 100;
