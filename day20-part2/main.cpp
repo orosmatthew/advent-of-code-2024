@@ -153,26 +153,24 @@ public:
         std::vector<std::optional<int64_t>> time_grid;
         traverse(traversed_positions, time_grid);
         uint64_t count = 0;
+        const std::vector<std::pair<Vector2i, int64_t>> range_offsets = cheat_range_offsets();
         for (const Vector2i& pos : traversed_positions) {
-            for (int64_t x = -20; x <= 20; ++x) {
-                for (int64_t y = -20; y <= 20; ++y) {
-                    const Vector2i cheat_end = pos + Vector2i { x, y };
-                    const int64_t dist = std::abs(pos.x - cheat_end.x) + std::abs(pos.y - cheat_end.y);
-                    if (dist > 20 || !in_bounds(cheat_end)) {
-                        continue;
-                    }
-                    assert(time_grid[index(pos)].has_value());
-                    const int64_t current_time = time_grid[index(pos)].value();
-                    const std::optional<int64_t> cheat_end_time = time_grid[index(cheat_end)];
-                    if (!cheat_end_time.has_value()) {
-                        continue;
-                    }
-                    if (const int64_t time_saved = cheat_end_time.value() - current_time - dist;
-                        time_saved < picoseconds || time_saved <= 0) {
-                        continue;
-                    }
-                    ++count;
+            for (const auto& [offset, dist] : range_offsets) {
+                const Vector2i cheat_end = pos + offset;
+                if (!in_bounds(cheat_end)) {
+                    continue;
                 }
+                assert(time_grid[index(pos)].has_value());
+                const int64_t current_time = time_grid[index(pos)].value();
+                const std::optional<int64_t> cheat_end_time = time_grid[index(cheat_end)];
+                if (!cheat_end_time.has_value()) {
+                    continue;
+                }
+                if (const int64_t time_saved = cheat_end_time.value() - current_time - dist;
+                    time_saved < picoseconds || time_saved <= 0) {
+                    continue;
+                }
+                ++count;
             }
         }
         return count;
@@ -195,6 +193,19 @@ private:
     [[nodiscard]] size_t index(const Vector2i& pos) const
     {
         return pos.y * m_size.x + pos.x;
+    }
+
+    [[nodiscard]] static std::vector<std::pair<Vector2i, int64_t>> cheat_range_offsets()
+    {
+        std::vector<std::pair<Vector2i, int64_t>> offsets;
+        for (int64_t x = -20; x <= 20; ++x) {
+            for (int64_t y = -20; y <= 20; ++y) {
+                if (const int64_t dist = std::abs(x) + std::abs(y); dist <= 20) {
+                    offsets.emplace_back(Vector2i { x, y }, dist);
+                }
+            }
+        }
+        return offsets;
     }
 
     void traverse(std::vector<Vector2i>& positions, std::vector<std::optional<int64_t>>& time_grid) const
@@ -246,7 +257,7 @@ int main()
     const std::string data = read_data("./day20-part2/input.txt");
 
 #ifdef BENCHMARK
-    constexpr int n_runs = 10000;
+    constexpr int n_runs = 100;
     double time_running_total = 0.0;
 
     for (int n_run = 0; n_run < n_runs; ++n_run) {
@@ -254,7 +265,7 @@ int main()
         // ReSharper disable once CppDFAUnusedValue
         // ReSharper disable once CppDFAUnreadVariable
         // ReSharper disable once CppDeclaratorNeverUsed
-        volatile auto result = solve(data);
+        volatile auto result = solve(data, 100);
         auto end = std::chrono::high_resolution_clock::now();
         time_running_total += std::chrono::duration<double, std::nano>(end - start).count();
     }
