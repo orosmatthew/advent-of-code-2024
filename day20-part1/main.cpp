@@ -104,12 +104,6 @@ static Vector2i dir_offset(const Dir dir)
 
 class Map {
 public:
-    struct Cheat {
-        Vector2i start;
-        Vector2i end;
-        int64_t picoseconds_saved;
-    };
-
     static Map parse(const std::string& data)
     {
         std::vector<bool> walls;
@@ -125,7 +119,6 @@ public:
                 ++y;
                 continue;
             }
-            const int x = width.has_value() ? i % (width.value() + 1) : i;
             switch (data[i]) {
             case '#':
                 walls.push_back(true);
@@ -133,16 +126,18 @@ public:
             case '.':
                 walls.push_back(false);
                 break;
-            case 'S':
+            case 'S': {
                 assert(!start.has_value());
+                const int x = width.has_value() ? i % (width.value() + 1) : i;
                 start = { x, y };
                 walls.push_back(false);
-                break;
-            case 'E':
+            } break;
+            case 'E': {
                 assert(!end.has_value());
+                const int x = width.has_value() ? i % (width.value() + 1) : i;
                 end = { x, y };
                 walls.push_back(false);
-                break;
+            } break;
             default:
                 assert(false);
             }
@@ -152,12 +147,12 @@ public:
         return { std::move(walls), { width.value(), y }, start.value(), end.value() };
     }
 
-    [[nodiscard]] std::vector<Cheat> cheats() const
+    [[nodiscard]] uint64_t cheats_saved_at_least(const int64_t picoseconds) const
     {
         std::vector<Vector2i> traversed_positions;
         std::vector<std::optional<int64_t>> time_grid;
         traverse(traversed_positions, time_grid);
-        std::vector<Cheat> cheats;
+        uint64_t count = 0;
         for (const Vector2i& pos : traversed_positions) {
             for (const Dir dir : dirs) {
                 const Vector2i offset = dir_offset(dir);
@@ -175,14 +170,14 @@ public:
                 if (!cheat_end_time.has_value()) {
                     continue;
                 }
-                const int64_t time_saved = cheat_end_time.value() - current_time - 2;
-                if (time_saved <= 0) {
+                if (const int64_t time_saved = cheat_end_time.value() - current_time - 2;
+                    time_saved < picoseconds || time_saved <= 0) {
                     continue;
                 }
-                cheats.push_back({ .start = cheat_start, .end = cheat_end, .picoseconds_saved = time_saved });
+                ++count;
             }
         }
-        return cheats;
+        return count;
     }
 
 private:
@@ -243,14 +238,7 @@ private:
 static uint64_t solve(const std::string& data)
 {
     const Map map = Map::parse(data);
-    const std::vector<Map::Cheat> cheats = map.cheats();
-    uint64_t cheats_count = 0;
-    for (const Map::Cheat& cheat : cheats) {
-        if (cheat.picoseconds_saved >= 100) {
-            ++cheats_count;
-        }
-    }
-    return cheats_count;
+    return map.cheats_saved_at_least(100);
 }
 
 int main()
