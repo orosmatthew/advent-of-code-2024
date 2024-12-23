@@ -1,18 +1,13 @@
 #include <algorithm>
-#include <cassert>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
-#include <map>
 #include <ranges>
-#include <span>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
-#include <variant>
-#include <vector>
 
 static std::string read_data(const std::filesystem::path& path)
 {
@@ -50,9 +45,9 @@ static uint32_t pack_changes(const std::array<int8_t, 4>& changes)
 }
 
 // ReSharper disable once CppDFAConstantParameter
-static ChangesPrice predict_prices(const int64_t initial_secret, const uint64_t count)
+static void predict_prices(const int64_t initial_secret, const uint64_t count, ChangesPrice& changes_price)
 {
-    ChangesPrice changes_price;
+    std::unordered_set<uint32_t> changes_checked;
     int64_t prev_price = initial_secret % 10;
     int64_t current = initial_secret;
     auto mix = [&current](const int64_t num) { current = num ^ current; };
@@ -73,41 +68,30 @@ static ChangesPrice predict_prices(const int64_t initial_secret, const uint64_t 
         const int64_t price = current % 10;
         shift_changes();
         changes[changes.size() - 1] = static_cast<int8_t>(price - prev_price);
-        if (const uint32_t packed_changes = pack_changes(changes); i >= 3 && !changes_price.contains(packed_changes)) {
-            changes_price[packed_changes] = price;
+        if (const uint32_t packed_changes = pack_changes(changes);
+            i >= 3 && !changes_checked.contains(packed_changes)) {
+            if (const auto it = changes_price.find(packed_changes); it != changes_price.end()) {
+                it->second += price;
+            }
+            else {
+                changes_price[packed_changes] = price;
+            }
+            changes_checked.insert(packed_changes);
         }
         prev_price = price;
     }
-    return changes_price;
 }
 
 static uint64_t solve(const std::string& data)
 {
-    std::vector<ChangesPrice> changes_prices;
+    ChangesPrice changes_price;
     for (int pos = 0; pos < data.size(); ++pos) {
         const int64_t initial = parse_int(data, pos);
-        changes_prices.push_back(predict_prices(initial, 2000));
+        predict_prices(initial, 2000, changes_price);
     }
-    std::unordered_map<uint32_t, uint64_t> price_with_changes_cache;
-    auto price_with_changes = [&price_with_changes_cache, &changes_prices](const uint32_t packed_changes) -> uint64_t {
-        if (const auto it = price_with_changes_cache.find(packed_changes); it != price_with_changes_cache.end()) {
-            return it->second;
-        }
-        uint64_t price = 0;
-        for (const ChangesPrice& buyer_changes_price : changes_prices) {
-            if (const auto it = buyer_changes_price.find(packed_changes); it != buyer_changes_price.end()) {
-                price += it->second;
-            }
-        }
-        price_with_changes_cache[packed_changes] = price;
-        return price;
-    };
     uint64_t max_price = std::numeric_limits<uint64_t>::min();
-    for (const ChangesPrice& buyer_changes_price : changes_prices) {
-        for (const uint32_t packed_changes : buyer_changes_price | std::views::keys) {
-            // std::cout << "trying: " << packed_changes << "\n";
-            max_price = std::max(max_price, price_with_changes(packed_changes));
-        }
+    for (const int64_t price : changes_price | std::views::values) {
+        max_price = std::max(max_price, static_cast<uint64_t>(price));
     }
     return max_price;
 }
@@ -117,7 +101,7 @@ int main()
     const std::string data = read_data("./day22-part2/input.txt");
 
 #ifdef BENCHMARK
-    constexpr int n_runs = 4;
+    constexpr int n_runs = 20;
     double time_running_total = 0.0;
 
     for (int n_run = 0; n_run < n_runs; ++n_run) {
