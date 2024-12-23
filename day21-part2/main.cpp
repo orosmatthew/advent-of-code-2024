@@ -237,7 +237,7 @@ static std::map<std::pair<std::vector<DirKey>, int>, uint64_t> dirpad_min_moves_
 
 static uint64_t dirpad_min_moves(const std::vector<DirKey>& keys, const int depth = 0) // NOLINT(*-no-recursion)
 {
-    if (depth >= 2) {
+    if (depth >= 25) {
         return keys.size();
     }
     if (const auto it = dirpad_min_moves_cache.find({ keys, depth }); it != dirpad_min_moves_cache.end()) {
@@ -285,7 +285,7 @@ static uint64_t solve(const std::string& data)
 
 int main()
 {
-    const std::string data = read_data("./day21-part1/input.txt");
+    const std::string data = read_data("./day21-part2/input.txt");
 
 #ifdef BENCHMARK
     constexpr int n_runs = 1000000;
