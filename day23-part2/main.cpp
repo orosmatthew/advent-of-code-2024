@@ -12,6 +12,7 @@
 #include <sstream>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 static std::string read_data(const std::filesystem::path& path)
 {
@@ -21,8 +22,8 @@ static std::string read_data(const std::filesystem::path& path)
     return ss.str();
 }
 
-using Computer = std::array<char, 2>;
-using Connections = std::map<Computer, std::vector<Computer>>;
+using Computer = uint16_t;
+using Connections = std::unordered_map<Computer, std::vector<Computer>>;
 
 static Connections parse_connections(const std::string& data)
 {
@@ -46,9 +47,9 @@ static Connections parse_connections(const std::string& data)
         }
     };
     for (int i = 0; i < data.size(); ++i) {
-        const Computer computer1 { data[i], data[i + 1] };
+        Computer computer1 = data[i] << 8 | data[i + 1];
         i += 3; // "xx-"
-        const Computer computer2 { data[i], data[i + 1] };
+        const Computer computer2 = data[i] << 8 | data[i + 1];
         i += 2; // "xx"
         insert_connection(computer1, computer2);
     }
@@ -108,8 +109,8 @@ static std::string solve(const std::string& data)
     std::ranges::sort(largest_network);
     std::string str;
     for (const Computer& c : largest_network) {
-        str.push_back(c[0]);
-        str.push_back(c[1]);
+        str.push_back(static_cast<char>(c >> 8));
+        str.push_back(static_cast<char>(c));
         str.push_back(',');
     }
     str.pop_back();
